@@ -46,8 +46,17 @@ def download_barchart_csv():
 
         # 登入 Barchart
         page.goto("https://www.barchart.com/login")
-        page.fill("input[name='email']", BARCHART_USER)
-        page.fill("input[name='password']", BARCHART_PASS)
+        page.wait_for_load_state("networkidle")
+        
+        # 尝试点击 "Sign in with Email" 按钮（如果存在），以展开邮箱登录表单
+        try:
+            page.click("text=Sign in with Email", timeout=5000)
+        except:
+            pass
+
+        # 使用通用选择器输入邮箱和密码
+        page.fill("input[type='email']", BARCHART_USER)
+        page.fill("input[type='password']", BARCHART_PASS)
         page.click("button[type='submit']")
         page.wait_for_load_state("networkidle")
         print("✅ 已登入 Barchart")
@@ -56,7 +65,7 @@ def download_barchart_csv():
         page.goto("https://www.barchart.com/futures/quotes/NQ*0/options")
         page.wait_for_timeout(3000)
 
-        # 點擊下載按鈕
+        # 點擊下載按鈕（保留原选择器，如有问题再调整）
         with page.expect_download() as download_info:
             page.click("text=Download")
         download = download_info.value
@@ -67,7 +76,6 @@ def download_barchart_csv():
 
         browser.close()
         return csv_path
-
 # ────────────────────────────────────────────
 # 2. Yahoo Finance 抓取數據
 # ────────────────────────────────────────────
