@@ -5,10 +5,11 @@ NQ 選擇權 GEX 全自動爬蟲 v1.4
 - 假日不執行
 - 防錯機制（數據量異常時跳過寫入）
 - 優先使用本地 CSV，自動下載為備援
+- 寫入日期使用台北時間（UTC+8），與 Apps Script 同步
 """
 
 import os, csv, math, json, time
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from collections import defaultdict
 from playwright.sync_api import sync_playwright
 
@@ -27,15 +28,13 @@ GOOGLE_CREDS_JSON = os.environ.get("GOOGLE_SHEETS_CREDENTIALS", "{}")
 
 # ---------- 假日判斷 ----------
 def is_us_market_open():
-    """簡單判斷：周末一定休市"""
-    today = date.today()
+    """簡單判斷：周末一定休市（使用台北時間）"""
+    tw_now = datetime.now(timezone(timedelta(hours=8)))
+    today = tw_now.date()
     # 周六(5) 周日(6) 休市
     if today.weekday() >= 5:
         return False
     # 以後可以手動加入美股假日列表
-    # holidays = ["2026-01-01", "2026-07-04", "2026-12-25"]
-    # if today.strftime("%Y-%m-%d") in holidays:
-    #     return False
     return True
 
 # ---------- 1. 下載 CSV ----------
@@ -209,10 +208,14 @@ def write_to_sheet(gex_data, tv_string):
     ws.append_row([""])
     ws.append_row(["更新日期","履約價","CallOI","PutOI","GEX","C/P比","佔比%","Zero Gamma","大資金"])
 
+    # ✅ 修改重點：使用台北時間（UTC+8）寫入日期
+    tw_now = datetime.now(timezone(timedelta(hours=8)))
+    date_str = tw_now.strftime("%Y/%m/%d")
+
     rows = []
     for d in sorted(gex_data, key=lambda x: x["履約價"], reverse=True):
         rows.append([
-            datetime.now().strftime("%Y/%m/%d"),
+            date_str,          # 台北日期
             d["履約價"], d["call_oi"], d["put_oi"],
             d["gex"], d["cp_ratio"], d["weight"],
             "✅ 多空分界" if d["is_zero_gamma"] else "",
@@ -227,7 +230,7 @@ def main():
     print("NQ GEX 全自動爬蟲 v1.4")
     print("=" * 60)
 
-    # 假日判斷
+    # 假日判斷 (使用台北日期)
     if not is_us_market_open():
         print("⏸️ 今日為美股休市日（週末），跳過爬蟲")
         return
