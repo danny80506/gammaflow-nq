@@ -6,7 +6,6 @@
     <title>GammaFlow NQ · 選擇權籌碼</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        /* ===== 全域變數 (NQ 藍色主題) ===== */
         :root {
             --primary: #4A9EE0;
             --primary-light: #6BB5F0;
@@ -27,8 +26,6 @@
             --text3: #6B655C;
             --purple: #b085f5;
             --amber: #d2991d;
-            --orange: #f0883e;
-            --yellow: #e3b341;
             --card-radius: 6px;
             --bar-height: 22px;
         }
@@ -76,6 +73,7 @@
         .refresh-btn:hover { background: rgba(74, 158, 224, 0.08); }
 
         .section { padding: 20px; }
+
         .section-title {
             font-family: 'JetBrains Mono', monospace;
             font-size: 14px;
@@ -120,7 +118,97 @@
         .purple { color: var(--purple); }
         .nq-primary { color: var(--primary-light); }
 
-        /* ===== 能量條 (NQ 風格) ===== */
+        /* ── 分析卡片 ── */
+        .analysis-card {
+            border-left: 4px solid var(--primary);
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .analysis-card h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            color: var(--primary-light);
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .analysis-item {
+            font-size: 14px;
+            padding: 6px 0;
+            line-height: 1.6;
+            color: var(--text2);
+        }
+        .analysis-tag {
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 2px;
+            margin-right: 6px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .tag-bull { background: rgba(61, 191, 140, 0.15); color: #86efac; }
+        .tag-bear { background: rgba(248, 81, 73, 0.15); color: #fca5a5; }
+        .tag-info { background: rgba(74, 158, 224, 0.15); color: #93c5fd; }
+
+        /* ── 图例 ── */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            font-size: 13px;
+            color: var(--text2);
+            margin-bottom: 14px;
+            padding: 10px 14px;
+            background: var(--bg3);
+            border-radius: 4px;
+        }
+        .legend span { display: flex; align-items: center; gap: 6px; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+        .legend-dot.red { background: var(--red); }
+        .legend-dot.green { background: var(--green); }
+        .legend-dot.purple { background: var(--purple); }
+        .legend-dot.gold { background: var(--amber); }
+
+        /* ── 使用提示 / 數據說明 ── */
+        .info-box {
+            font-size: 13px;
+            color: var(--text3);
+            padding: 14px 16px;
+            background: var(--bg3);
+            border-radius: 4px;
+            margin-top: 20px;
+            line-height: 1.8;
+            border-left: 2px solid var(--border2);
+        }
+        .info-box strong { color: var(--primary-light); }
+        .info-box h4 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--primary-light);
+            margin-bottom: 8px;
+        }
+
+        /* ── 免責聲明 ── */
+        .disclaimer {
+            font-size: 11px;
+            color: var(--text3);
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 4px;
+            margin-top: 16px;
+            line-height: 1.8;
+            text-align: center;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ===== 能量條 ===== */
         .energy-container { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
         .energy-row {
             display: flex; align-items: stretch; height: 36px;
@@ -204,10 +292,8 @@
             background: rgba(210, 153, 29, 0.18); color: var(--amber);
             border-color: rgba(210, 153, 29, 0.18);
         }
-
         .energy-empty { text-align: center; padding: 30px 0; color: var(--text3); font-size: 15px; }
 
-        /* ===== 響應式 ===== */
         @media (max-width: 500px) {
             .energy-row { height: 30px; }
             .energy-center { min-width: 55px; padding: 0 4px; }
@@ -237,8 +323,44 @@
             <div class="card"><h3>📈 NDX 參考</h3><div class="big nq-primary" id="nqNDX">-</div><div class="sub" id="nqVol"></div></div>
         </div>
 
+        <!-- 🧠 市場格局分析 -->
+        <div class="analysis-card" id="analysisCard" style="display:none;">
+            <h3>🧠 NQ 市場格局分析</h3>
+            <div id="analysisContent"></div>
+        </div>
+
         <div class="section-title">🔵 NQ 選擇權壓力表</div>
+
+        <!-- 图例 -->
+        <div class="legend">
+            <span><span class="legend-dot red"></span> 壓力 (Call OI)</span>
+            <span><span class="legend-dot green"></span> 支撐 (Put OI)</span>
+            <span><span class="legend-dot purple"></span> ZG 多空分界</span>
+            <span><span class="legend-dot gold"></span> 大資金</span>
+        </div>
+
         <div class="energy-container" id="nqEnergyList"></div>
+
+        <!-- 使用提示 -->
+        <div class="info-box">
+            <strong>📘 使用提示</strong><br>
+            • <strong>ZG 上方＝多方控盤</strong>，操作上以拉回偏多思考；<strong>ZG 下方＝空方控盤</strong>，反彈遇壓偏空勝率較高。<br>
+            • <strong>紅色能量條越長</strong>，代表該價位的 Call 賣壓越重；<strong>綠色能量條越長</strong>，代表 Put 支撐越強。<br>
+            • <strong>標記 💰 大資金</strong> 的價位，代表機構籌碼集中，是更關鍵的支撐壓力區。<br>
+            • 每日早上 7 點自動更新，數據基於前一日選擇權未平倉量計算。
+        </div>
+
+        <!-- 📌 NQ 數據說明與適用範圍 -->
+       <div class="info-box" style="margin-top:16px;">
+            <h4>📌 NQ 數據說明</h4>
+            NQ 選擇權的數據基於 <strong>每日盤後未平倉量</strong> 計算，反映的是前一個交易日的市場籌碼結構。<br><br>
+            <strong>適合短線交易者：</strong><br>
+            • 用來規劃 <strong>當日的支撐壓力區間</strong>，判斷盤中多空方向。<br>
+            • 結合 Zero Gamma 和關鍵牆，快速找到 <strong>短線進出場的參考點</strong>。<br><br>
+            <strong>⚠️ 不適合做為中長期趨勢的唯一依據：</strong><br>
+            • 數據每天更新一次，無法反映盤中即時的籌碼變化。<br>
+            • 若需中長線判斷，建議搭配其他總體經濟指標或每週 CFTC 大戶報告。
+        </div>
 
         <div class="card" style="margin-top:20px">
             <h3 style="color:var(--text3);">📋 NQ GAMMA 指標數據</h3>
@@ -246,6 +368,13 @@
                 <input id="tvNqInput" readonly style="flex:1; background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:10px; color:var(--text); font-size:13px; font-family:'JetBrains Mono',monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" placeholder="載入中...">
                 <button onclick="copyTV()" style="background:transparent; border:1px solid var(--border2); border-radius:4px; padding:10px 16px; color:var(--primary-light); font-family:'JetBrains Mono',monospace; font-size:14px; cursor:pointer; white-space:nowrap;">📋 複製</button>
             </div>
+        </div>
+
+        <!-- ⚠️ 免責聲明 -->
+        <div class="disclaimer">
+            <strong>⚠️ 風險提示與免責聲明</strong><br>
+            GammaFlow NQ 及相關指標為輔助分析工具，不構成任何投資、交易或操作建議。所有數據皆基於公開資訊與數學模型計算，僅供參考。<br>
+            選擇權與期貨交易具有高風險，可能導致本金全部虧損。使用者應自行判斷市場狀況並承擔所有交易風險，開發者不對任何因使用本工具而產生的損失負責。
         </div>
 
         <div class="update-time" id="updateTime" style="text-align:center; font-size:13px; color:var(--text3); padding:16px; margin-top:20px;">最後更新：載入中...</div>
@@ -283,12 +412,59 @@
             document.getElementById('nqResistOI').textContent = `Call ${Math.round(safeNum(topC['CallOI'])/1000)}K 口`;
             document.getElementById('nqSupport').textContent = safeNum(topP['履約價']).toLocaleString();
             document.getElementById('nqSupportOI').textContent = `Put ${Math.round(safeNum(topP['PutOI'])/1000)}K 口`;
+            
             const zgStrike = zg ? safeNum(zg['履約價']) : null;
             document.getElementById('nqZG').textContent = zgStrike ? zgStrike.toLocaleString() : '-';
-            
-            // NDX 現價 (從試算表可能沒有，先用 0)
             document.getElementById('nqNDX').textContent = '請參考指標';
             document.getElementById('nqVol').textContent = '^VXN 波動率參考';
+
+            buildAnalysis(dataRows, topC, topP, zg);
+        }
+
+        function buildAnalysis(dataRows, topC, topP, zg) {
+            const card = document.getElementById('analysisCard');
+            const content = document.getElementById('analysisContent');
+            if (!card || !content) return;
+
+            const zgStrike = zg ? safeNum(zg['履約價']) : null;
+            const strikes = dataRows.map(r => safeNum(r['履約價'])).filter(s => s > 0);
+            const midPrice = strikes.length > 0 ? Math.round((Math.max(...strikes) + Math.min(...strikes)) / 2) : null;
+
+            let html = '';
+
+            if (zgStrike && midPrice) {
+                const diff = midPrice - zgStrike;
+                const diffPct = zgStrike > 0 ? (diff / zgStrike * 100) : 0;
+
+                if (diffPct > 2) {
+                    html += `<div class="analysis-item"><span class="analysis-tag tag-bull">偏多格局</span>價格區間中位數高於 Zero Gamma (${zgStrike.toLocaleString()}) 約 ${diffPct.toFixed(1)}%，多方掌控，拉回接近 ZG 可視為中期支撐參考。</div>`;
+                } else if (diffPct < -2) {
+                    html += `<div class="analysis-item"><span class="analysis-tag tag-bear">偏空格局</span>價格區間中位數低於 Zero Gamma (${zgStrike.toLocaleString()}) 約 ${Math.abs(diffPct).toFixed(1)}%，空方掌控，反彈至 ZG 附近易遭逢賣壓。</div>`;
+                } else {
+                    html += `<div class="analysis-item"><span class="analysis-tag tag-info">多空均衡</span>價格區間中位數貼近 Zero Gamma (${zgStrike.toLocaleString()})，市場方向尚未明確，需等待進一步表態。</div>`;
+                }
+            } else {
+                html += `<div class="analysis-item"><span class="analysis-tag tag-info">數據載入中</span>Zero Gamma 數據尚未就緒，請稍後再更新。</div>`;
+            }
+
+            if (topC && topP) {
+                const resistStrike = safeNum(topC['履約價']);
+                const supportStrike = safeNum(topP['履約價']);
+                const gap = resistStrike - supportStrike;
+                if (gap > 0) {
+                    html += `<div class="analysis-item"><span class="analysis-tag tag-info">區間觀察</span>最大壓力 ${resistStrike.toLocaleString()} 與最大支撐 ${supportStrike.toLocaleString()} 之間距約 ${gap.toLocaleString()} 點，可作為短線震盪區間參考。</div>`;
+                }
+            }
+
+            if (zgStrike && midPrice) {
+                const zgDist = Math.abs(midPrice - zgStrike);
+                if (zgDist > 500) {
+                    html += `<div class="analysis-item"><span class="analysis-tag tag-info">ZG 偏離</span>Zero Gamma 距離當前價格區間較遠（約 ${zgDist.toLocaleString()} 點），短線可改以最大壓力／支撐為主要參考，等待 ZG 回歸。</div>`;
+                }
+            }
+
+            content.innerHTML = html;
+            card.style.display = 'block';
         }
 
         function buildEnergyBars(dataRows) {
@@ -367,7 +543,6 @@
                 buildSummaryCard(DATA.sr);
                 buildEnergyBars(DATA.sr);
                 
-                // 載入 TV 字串
                 try {
                     const tvRes = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=NQ 合併&range=A2&_=${Date.now()}`);
                     document.getElementById('tvNqInput').value = (await tvRes.text()).replace(/"/g, '').trim();
