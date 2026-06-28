@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NQ 選擇權 GEX 全自動爬蟲 v1.3 (穩定版)
-- 使用最新的 NQU26 合約下載 URL
-- 優先使用已上傳的 nq_options.csv（如果存在）
-- 自動解析 CSV 並計算 Black-Scholes GEX
-- 寫入 Google 試算表「NQ 合併」
+NQ 選擇權 GEX 全自動爬蟲 v1.4 (完整資料版)
+- 使用包含所有履約價的 Barchart URL
+- 加入假日判斷（週末不執行）
+- 加入資料量異常保護
+- 優先使用本地 CSV，避免重複下載
 """
 
 import os, csv, math, json, time
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 from collections import defaultdict
 from playwright.sync_api import sync_playwright
 
@@ -26,13 +26,24 @@ BARCHART_USER = os.environ.get("BARCHART_USER", "")
 BARCHART_PASS = os.environ.get("BARCHART_PASS", "")
 GOOGLE_CREDS_JSON = os.environ.get("GOOGLE_SHEETS_CREDENTIALS", "{}")
 
+# ---------- 假日判斷 ----------
+def is_us_market_open():
+    """簡單判斷：週末一定休市，之後可加入美股假日列表"""
+    today = date.today()
+    if today.weekday() >= 5:  # 週六=5, 週日=6
+        return False
+    # 未來可手動加入美股假日
+    # holidays = ["2026-07-03", "2026-09-07", ...]
+    # if today.strftime("%Y-%m-%d") in holidays:
+    #     return False
+    return True
+
 # ---------- 1. 下載 CSV ----------
 def download_barchart_csv():
     local_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nq_options.csv")
     
-    # 優先使用本地檔案
     if os.path.exists(local_csv):
-        print(f"✅ 使用本地 CSV: {local_csv}")
+        print(f"✅ 使用本地 CSV 文件: {local_csv}")
         return local_csv
 
     if not BARCHART_USER or not BARCHART_PASS:
@@ -51,31 +62,50 @@ def download_barchart_csv():
         page.fill("input[type='password']", BARCHART_PASS)
         page.click("button[type='submit']")
         page.wait_for_load_state("networkidle")
-        print("✅ 已登入")
+        print("✅ 已登入 Barchart")
 
-        # 使用 NQU26 (2026年9月) 合約的直接下載 URL
-        download_url = "https://www.barchart.com/futures/quotes/NQU26/options/download?futuresOptionsView=merged"
-        try:
-            with page.expect_download(timeout=15000) as download_info:
-                page.goto(download_url)
-            download = download_info.value
-            csv_path = os.path.join(CSV_DOWNLOAD_DIR, "nq_options.csv")
-            download.save_as(csv_path)
-            print(f"✅ CSV 已下載至 {csv_path}")
-            success = True
-        except Exception as e:
-            print(f"❌ 直接下載失敗: {e}")
-            success = False
+        # 使用包含所有履約價的 URL (NQU26 = 2026年9月合約)
+        download_url = "https://www.barchart.com/futures/quotes/NQU26/options/sep-26?futuresOptionsView=merged&moneyness=allRows"
+        page.goto(download_url, wait_until="networkidle")
+        page.wait_for_timeout(3000)
+
+        # 嘗試點擊下載按鈕
+        download_success = False
+        download_selectors = [
+            "text=Download", "text=download", "text=CSV", "text=Export",
+            "a:has-text('Download')", "button:has-text('Download')",
+            "[class*='download']", "[class*='icon-download']", ".download-csv"
+        ]
+        for sel in download_selectors:
+            try:
+                with page.expect_download(timeout=8000) as download_info:
+                    page.click(sel)
+                download_success = True
+                break
+            except:
+                continue
+
+        if not download_success:
+            # 嘗試直接拼接下載 URL
+            try:
+                csv_download_url = download_url + "&download=1"
+                with page.expect_download(timeout=8000) as download_info:
+                    page.goto(csv_download_url)
+                download_success = True
+            except:
+                pass
+
+        if not download_success:
+            page.screenshot(path="/tmp/nq_page.png")
+            raise RuntimeError("自動下載失敗，請手動下載 CSV 並上傳到倉庫根目錄")
+
+        download = download_info.value
+        csv_path = os.path.join(CSV_DOWNLOAD_DIR, "nq_options.csv")
+        download.save_as(csv_path)
+        print(f"✅ CSV 已自動下載至 {csv_path}")
 
         browser.close()
-        
-        if not success:
-            if os.path.exists(local_csv):
-                print("✅ 回退使用本地 CSV")
-                return local_csv
-            raise RuntimeError("自動下載失敗，且無本地 CSV")
-    
-    return csv_path
+        return csv_path
 
 # ---------- 2. 解析 CSV ----------
 def parse_barchart_csv(file_path):
@@ -86,7 +116,6 @@ def parse_barchart_csv(file_path):
         delimiter = '\t' if '\t' in first_line else ','
         reader = csv.DictReader(f, delimiter=delimiter)
         
-        # 列名對照
         headers = [h.strip() for h in (reader.fieldnames or [])]
         strike_key = next((h for h in headers if h.lower().startswith('strike')), 'Strike')
         oi_key = next((h for h in headers if 'open int' in h.lower()), 'Open Int')
@@ -214,8 +243,13 @@ def write_to_sheet(gex_data, tv_string):
 # ---------- 5. 主程式 ----------
 def main():
     print("=" * 60)
-    print("NQ GEX 全自動爬蟲 v1.3 (穩定版)")
+    print("NQ GEX 全自動爬蟲 v1.4 (完整資料版)")
     print("=" * 60)
+
+    # 假日判斷
+    if not is_us_market_open():
+        print("⏸️ 今日為美股休市日（週末），跳過爬蟲")
+        return
 
     csv_path = download_barchart_csv()
 
@@ -226,13 +260,15 @@ def main():
 
     details = parse_barchart_csv(csv_path)
     print(f"✅ 解析 {len(details)} 筆明細")
-    if not details:
-        print("❌ 無資料，結束")
+
+    # 資料量異常保護
+    if len(details) < 20:
+        print(f"❌ 數據量異常（僅 {len(details)} 筆），可能是 Barchart 更新中，跳過寫入")
         return
 
     gex_data = calc_nq_gex(details, S, sigma)
     if not gex_data:
-        print("❌ GEX 計算失敗")
+        print("❌ GEX 計算失敗，跳過寫入")
         return
 
     top_call = sorted(gex_data, key=lambda x: x["call_oi"], reverse=True)[0]
