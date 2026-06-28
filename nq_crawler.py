@@ -34,72 +34,87 @@ GOOGLE_CREDS_JSON = os.environ.get("GOOGLE_SHEETS_CREDENTIALS", "{}")
 # 1. 瀏覽器自動下載 Barchart CSV
 # ────────────────────────────────────────────
 def download_barchart_csv():
+    """优先使用本地 CSV，失败则尝试自动下载"""
+    local_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nq_options.csv")
+    
+    # 如果仓库里有 CSV，直接使用
+    if os.path.exists(local_csv):
+        print(f"✅ 使用本地 CSV 文件: {local_csv}")
+        return local_csv
+    
+    # 没有本地文件时，尝试自动下载
     if not BARCHART_USER or not BARCHART_PASS:
-        raise RuntimeError("請設定 BARCHART_USER 和 BARCHART_PASS Secrets")
+        raise FileNotFoundError(f"找不到 {local_csv}，且未设置 Barchart 登录信息，无法自动下载")
 
     os.makedirs(CSV_DOWNLOAD_DIR, exist_ok=True)
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                viewport={"width": 1280, "height": 720},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                accept_downloads=True,
+            )
+            page = context.new_page()
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(
-            viewport={"width": 1280, "height": 720},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            accept_downloads=True,
-        )
-        page = context.new_page()
+            # 登录
+            page.goto("https://www.barchart.com/login", wait_until="networkidle")
+            page.wait_for_timeout(2000)
+            page.fill("input[name='email']", BARCHART_USER)
+            page.fill("input[type='password']", BARCHART_PASS)
+            page.click("button[type='submit']")
+            page.wait_for_load_state("networkidle")
+            print("✅ 已登入 Barchart")
 
-        # 1. 前往登录页
-        page.goto("https://www.barchart.com/login", wait_until="networkidle")
-        page.wait_for_timeout(2000)
+            # NQ 选择权页面
+            page.goto("https://www.barchart.com/futures/quotes/NQ*0/options", wait_until="networkidle")
+            page.wait_for_timeout(5000)
 
-        # 2. 填写邮箱和密码（使用正确的选择器）
-        # 根据你提供的真实HTML，邮箱输入框是 <input type="text" name="email" placeholder="Login with email">
-        page.fill("input[name='email']", BARCHART_USER)
-        page.fill("input[type='password']", BARCHART_PASS)
-        
-        # 3. 点击登录按钮
-        page.click("button[type='submit']")
-        page.wait_for_load_state("networkidle")
-        print("✅ 已登入 Barchart")
+            # 尝试下载
+            download_selectors = [
+                "text=Download", "text=download", "text=CSV", "text=Export",
+                "a:has-text('Download')", "button:has-text('Download')",
+                "[class*='download']", "[class*='icon-download']", ".download-csv",
+                "[data-ng-click*='download']"
+            ]
+            download_success = False
+            for sel in download_selectors:
+                try:
+                    with page.expect_download(timeout=8000) as download_info:
+                        page.click(sel)
+                    download_success = True
+                    break
+                except:
+                    continue
 
-        # 4. 前往 NQ 選擇權頁面
-        page.goto("https://www.barchart.com/futures/quotes/NQ*0/options", wait_until="networkidle")
-        page.wait_for_timeout(3000)
+            # 尝试直接拼接下载 URL
+            if not download_success:
+                try:
+                    download_url = "https://www.barchart.com/futures/quotes/NQ*0/options/download"
+                    with page.expect_download(timeout=8000) as download_info:
+                        page.goto(download_url)
+                    download_success = True
+                except:
+                    pass
 
-        # 5. 尝试多种下载按钮选择器
-        download_clicked = False
-        download_selectors = [
-            "text=Download",
-            "text=download",
-            "text=CSV",
-            "text=Export",
-            "a:has-text('Download')",
-            "button:has-text('Download')",
-            "[class*='download']",
-            "[class*='icon-download']",
-            ".download-csv",
-        ]
-        for sel in download_selectors:
-            try:
-                with page.expect_download(timeout=8000) as download_info:
-                    page.click(sel)
-                download_clicked = True
-                break
-            except:
-                continue
+            if not download_success:
+                page.screenshot(path="/tmp/nq_page.png")
+                raise RuntimeError("自动下载失败，请手动下载 CSV 并上传到仓库根目录")
 
-        if not download_clicked:
-            # 如果所有选择器都失败，截图保存以便调试
-            page.screenshot(path="/tmp/nq_page.png")
-            raise RuntimeError("找不到下载按钮，截图已保存至 /tmp/nq_page.png，请检查截图或手动下载")
+            download = download_info.value
+            csv_path = os.path.join(CSV_DOWNLOAD_DIR, "nq_options.csv")
+            download.save_as(csv_path)
+            print(f"✅ CSV 已自动下载至 {csv_path}")
+            browser.close()
+            return csv_path
 
-        download = download_info.value
-        csv_path = os.path.join(CSV_DOWNLOAD_DIR, "nq_options.csv")
-        download.save_as(csv_path)
-        print(f"✅ CSV 已下載至 {csv_path}")
-
-        browser.close()
-        return csv_path
+    except Exception as e:
+        print(f"⚠️ 自动下载失败: {e}")
+        if os.path.exists(local_csv):
+            print(f"✅ 回退使用本地 CSV: {local_csv}")
+            return local_csv
+        else:
+            raise FileNotFoundError(f"自动下载失败，且本地也没有 nq_options.csv。请手动下载并上传到仓库。")
 
 # ────────────────────────────────────────────
 # 2. Yahoo Finance 抓取數據
