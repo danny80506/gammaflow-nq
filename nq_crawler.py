@@ -20,7 +20,7 @@ S_SOURCE     = "^NDX"     # 那斯達克100指數
 R            = 0.0525     # 美國無風險利率
 MULT         = 20         # NQ 選擇權乘數 ($20/點)
 
-SPREADSHEET_ID = "你的NQ試算表ID"  # ← 請換成你自己的
+SPREADSHEET_ID = "1oPHb8dhDBpoN623zU0zEpC7cuiFLCrzWmvlcZsfSYFM"  # ← 請換成你自己的
 CSV_DOWNLOAD_DIR = "/tmp/nq_csv"
 
 # Barchart 登入資訊（從 GitHub Secrets 讀取）
