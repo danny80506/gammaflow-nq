@@ -6,6 +6,7 @@
     <title>GammaFlow NQ · 選擇權籌碼</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        /* ===== 全域變數 (NQ 藍色主題) ===== */
         :root {
             --primary: #4A9EE0;
             --primary-light: #6BB5F0;
@@ -26,6 +27,8 @@
             --text3: #6B655C;
             --purple: #b085f5;
             --amber: #d2991d;
+            --orange: #f0883e;
+            --yellow: #e3b341;
             --card-radius: 6px;
             --bar-height: 22px;
         }
@@ -73,7 +76,6 @@
         .refresh-btn:hover { background: rgba(74, 158, 224, 0.08); }
 
         .section { padding: 20px; }
-
         .section-title {
             font-family: 'JetBrains Mono', monospace;
             font-size: 14px;
@@ -323,7 +325,7 @@
             <div class="card"><h3>📈 NDX 參考</h3><div class="big nq-primary" id="nqNDX">-</div><div class="sub" id="nqVol"></div></div>
         </div>
 
-        <!-- 🧠 市場格局分析 -->
+        <!-- 🧠 市場格局分析 (已修正) -->
         <div class="analysis-card" id="analysisCard" style="display:none;">
             <h3>🧠 NQ 市場格局分析</h3>
             <div id="analysisContent"></div>
@@ -344,14 +346,15 @@
         <!-- 使用提示 -->
         <div class="info-box">
             <strong>📘 使用提示</strong><br>
-            • <strong>ZG 上方＝多方控盤</strong>，操作上以拉回偏多思考；<strong>ZG 下方＝空方控盤</strong>，反彈遇壓偏空勝率較高。<br>
+            • <strong>ZG 上方＝正 Gamma 區域</strong>，Dealer 對沖抑制波動，適合低買高賣。<br>
+            • <strong>ZG 下方＝負 Gamma 區域</strong>，Dealer 對沖放大波動，適合順勢追價。<br>
             • <strong>紅色能量條越長</strong>，代表該價位的 Call 賣壓越重；<strong>綠色能量條越長</strong>，代表 Put 支撐越強。<br>
             • <strong>標記 💰 大資金</strong> 的價位，代表機構籌碼集中，是更關鍵的支撐壓力區。<br>
             • 每日早上 7 點自動更新，數據基於前一日選擇權未平倉量計算。
         </div>
 
-        <!-- 📌 NQ 數據說明與適用範圍 -->
-       <div class="info-box" style="margin-top:16px;">
+        <!-- 📌 NQ 數據說明 -->
+        <div class="info-box" style="margin-top:16px;">
             <h4>📌 NQ 數據說明</h4>
             NQ 選擇權的數據基於 <strong>每日盤後未平倉量</strong> 計算，反映的是前一個交易日的市場籌碼結構。<br><br>
             <strong>適合短線交易者：</strong><br>
@@ -432,21 +435,23 @@
 
             let html = '';
 
+            // ── ZG 結構分析 (已修正為波動模式判斷) ──
             if (zgStrike && midPrice) {
                 const diff = midPrice - zgStrike;
                 const diffPct = zgStrike > 0 ? (diff / zgStrike * 100) : 0;
 
                 if (diffPct > 2) {
-                    html += `<div class="analysis-item"><span class="analysis-tag tag-bull">偏多格局</span>價格區間中位數高於 Zero Gamma (${zgStrike.toLocaleString()}) 約 ${diffPct.toFixed(1)}%，多方掌控，拉回接近 ZG 可視為中期支撐參考。</div>`;
+                    html += `<div class="analysis-item"><span class="analysis-tag tag-info">📐 ZG 上方</span>價格區間中位數高於 Zero Gamma (${zgStrike.toLocaleString()}) 約 ${diffPct.toFixed(1)}%，市場處於<strong>正 Gamma 區域</strong>，Dealer 對沖將抑制波動，價格傾向區間整理，操作上適合低買高賣。</div>`;
                 } else if (diffPct < -2) {
-                    html += `<div class="analysis-item"><span class="analysis-tag tag-bear">偏空格局</span>價格區間中位數低於 Zero Gamma (${zgStrike.toLocaleString()}) 約 ${Math.abs(diffPct).toFixed(1)}%，空方掌控，反彈至 ZG 附近易遭逢賣壓。</div>`;
+                    html += `<div class="analysis-item"><span class="analysis-tag tag-info">📐 ZG 下方</span>價格區間中位數低於 Zero Gamma (${zgStrike.toLocaleString()}) 約 ${Math.abs(diffPct).toFixed(1)}%，市場處於<strong>負 Gamma 區域</strong>，Dealer 對沖將放大波動，容易出現方向性行情，操作上適合順勢追價。</div>`;
                 } else {
-                    html += `<div class="analysis-item"><span class="analysis-tag tag-info">多空均衡</span>價格區間中位數貼近 Zero Gamma (${zgStrike.toLocaleString()})，市場方向尚未明確，需等待進一步表態。</div>`;
+                    html += `<div class="analysis-item"><span class="analysis-tag tag-info">📐 ZG 附近</span>價格區間中位數貼近 Zero Gamma (${zgStrike.toLocaleString()})，Gamma 結構即將翻轉，市場面臨方向選擇，需等待進一步表態。</div>`;
                 }
             } else {
                 html += `<div class="analysis-item"><span class="analysis-tag tag-info">數據載入中</span>Zero Gamma 數據尚未就緒，請稍後再更新。</div>`;
             }
 
+            // 補充：最大壓力與支撐的距離
             if (topC && topP) {
                 const resistStrike = safeNum(topC['履約價']);
                 const supportStrike = safeNum(topP['履約價']);
@@ -456,6 +461,7 @@
                 }
             }
 
+            // ZG 距離提示
             if (zgStrike && midPrice) {
                 const zgDist = Math.abs(midPrice - zgStrike);
                 if (zgDist > 500) {
