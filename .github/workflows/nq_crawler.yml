@@ -5,6 +5,9 @@ on:
     # 每天台灣時間早上 7:00 (UTC 23:00)
     - cron: "0 23 * * *"
   workflow_dispatch:
+  repository_dispatch:        # 讓 Apps Script 可以觸發
+    types: [daily-run]
+  
 
 jobs:
   crawl:
