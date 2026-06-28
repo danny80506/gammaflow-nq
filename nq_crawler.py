@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NQ 選擇權 GEX 全自動爬蟲 v1.4 (完整資料版)
-- 使用包含所有履約價的 Barchart URL
-- 加入假日判斷（週末不執行）
-- 加入資料量異常保護
-- 優先使用本地 CSV，避免重複下載
+NQ 選擇權 GEX 全自動爬蟲 v1.4
+- 假日不執行
+- 防錯機制（數據量異常時跳過寫入）
+- 優先使用本地 CSV，自動下載為備援
 """
 
 import os, csv, math, json, time
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta, date
 from collections import defaultdict
 from playwright.sync_api import sync_playwright
 
@@ -28,12 +27,13 @@ GOOGLE_CREDS_JSON = os.environ.get("GOOGLE_SHEETS_CREDENTIALS", "{}")
 
 # ---------- 假日判斷 ----------
 def is_us_market_open():
-    """簡單判斷：週末一定休市，之後可加入美股假日列表"""
+    """簡單判斷：周末一定休市"""
     today = date.today()
-    if today.weekday() >= 5:  # 週六=5, 週日=6
+    # 周六(5) 周日(6) 休市
+    if today.weekday() >= 5:
         return False
-    # 未來可手動加入美股假日
-    # holidays = ["2026-07-03", "2026-09-07", ...]
+    # 以後可以手動加入美股假日列表
+    # holidays = ["2026-01-01", "2026-07-04", "2026-12-25"]
     # if today.strftime("%Y-%m-%d") in holidays:
     #     return False
     return True
@@ -43,7 +43,7 @@ def download_barchart_csv():
     local_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nq_options.csv")
     
     if os.path.exists(local_csv):
-        print(f"✅ 使用本地 CSV 文件: {local_csv}")
+        print(f"✅ 使用本地 CSV: {local_csv}")
         return local_csv
 
     if not BARCHART_USER or not BARCHART_PASS:
@@ -62,50 +62,33 @@ def download_barchart_csv():
         page.fill("input[type='password']", BARCHART_PASS)
         page.click("button[type='submit']")
         page.wait_for_load_state("networkidle")
-        print("✅ 已登入 Barchart")
+        print("✅ 已登入")
 
-        # 使用包含所有履約價的 URL (NQU26 = 2026年9月合約)
+        # 使用完整履約價 URL
         download_url = "https://www.barchart.com/futures/quotes/NQU26/options/sep-26?futuresOptionsView=merged&moneyness=allRows"
-        page.goto(download_url, wait_until="networkidle")
-        page.wait_for_timeout(3000)
-
-        # 嘗試點擊下載按鈕
-        download_success = False
-        download_selectors = [
-            "text=Download", "text=download", "text=CSV", "text=Export",
-            "a:has-text('Download')", "button:has-text('Download')",
-            "[class*='download']", "[class*='icon-download']", ".download-csv"
-        ]
-        for sel in download_selectors:
-            try:
-                with page.expect_download(timeout=8000) as download_info:
-                    page.click(sel)
-                download_success = True
-                break
-            except:
-                continue
-
-        if not download_success:
-            # 嘗試直接拼接下載 URL
-            try:
-                csv_download_url = download_url + "&download=1"
-                with page.expect_download(timeout=8000) as download_info:
-                    page.goto(csv_download_url)
-                download_success = True
-            except:
-                pass
-
-        if not download_success:
-            page.screenshot(path="/tmp/nq_page.png")
-            raise RuntimeError("自動下載失敗，請手動下載 CSV 並上傳到倉庫根目錄")
-
-        download = download_info.value
-        csv_path = os.path.join(CSV_DOWNLOAD_DIR, "nq_options.csv")
-        download.save_as(csv_path)
-        print(f"✅ CSV 已自動下載至 {csv_path}")
+        
+        # 嘗試直接下載
+        try:
+            with page.expect_download(timeout=15000) as download_info:
+                page.goto(download_url)
+            download = download_info.value
+            csv_path = os.path.join(CSV_DOWNLOAD_DIR, "nq_options.csv")
+            download.save_as(csv_path)
+            print(f"✅ CSV 已下載至 {csv_path}")
+            success = True
+        except Exception as e:
+            print(f"❌ 直接下載失敗: {e}")
+            success = False
 
         browser.close()
-        return csv_path
+        
+        if not success:
+            if os.path.exists(local_csv):
+                print("✅ 回退使用本地 CSV")
+                return local_csv
+            raise RuntimeError("自動下載失敗，且無本地 CSV")
+    
+    return csv_path
 
 # ---------- 2. 解析 CSV ----------
 def parse_barchart_csv(file_path):
@@ -121,8 +104,6 @@ def parse_barchart_csv(file_path):
         oi_key = next((h for h in headers if 'open int' in h.lower()), 'Open Int')
         type_key = next((h for h in headers if h.lower().strip() == 'type'), 'Type')
         time_key = next((h for h in headers if h.lower().strip() == 'time'), 'Time')
-        
-        print(f"📋 CSV 列名: {headers}")
         
         for r in reader:
             strike_str = r.get(strike_key, '')
@@ -243,7 +224,7 @@ def write_to_sheet(gex_data, tv_string):
 # ---------- 5. 主程式 ----------
 def main():
     print("=" * 60)
-    print("NQ GEX 全自動爬蟲 v1.4 (完整資料版)")
+    print("NQ GEX 全自動爬蟲 v1.4")
     print("=" * 60)
 
     # 假日判斷
@@ -260,10 +241,10 @@ def main():
 
     details = parse_barchart_csv(csv_path)
     print(f"✅ 解析 {len(details)} 筆明細")
-
-    # 資料量異常保護
-    if len(details) < 20:
-        print(f"❌ 數據量異常（僅 {len(details)} 筆），可能是 Barchart 更新中，跳過寫入")
+    
+    # 防錯機制：數據量異常時跳過
+    if len(details) < 50:
+        print(f"❌ 數據量異常（僅 {len(details)} 筆），可能是 Barchart 尚未更新，跳過寫入")
         return
 
     gex_data = calc_nq_gex(details, S, sigma)
