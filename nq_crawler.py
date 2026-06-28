@@ -1,196 +1,136 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NQ 選擇權 GEX 全自動爬蟲 v1.0
-- 自動登入 Barchart，下載 NQ 選擇權 CSV
-- 從 Yahoo Finance 抓 ^VXN（波動率）與 ^NDX（現價）
-- Black-Scholes Gamma 計算真實 GEX
-- 累積翻正標記 Zero Gamma
-- 寫入 Google 試算表「NQ 合併」工作表
+NQ 選擇權 GEX 全自動爬蟲 v1.2 (穩定版)
+- 使用直接下載 URL，不再點擊按鈕
+- 自動處理 CSV 格式差異
+- 寫入 Google 試算表「NQ 合併」
 """
 
-import os, csv, math, json, time, glob
+import os, csv, math, json, time
 from datetime import datetime, timedelta
 from collections import defaultdict
 from playwright.sync_api import sync_playwright
 
-# ---------- 設定區 ----------
-SIGMA_SOURCE = "^VXN"     # 那斯達克波動率指數
-S_SOURCE     = "^NDX"     # 那斯達克100指數
-R            = 0.0525     # 美國無風險利率
-MULT         = 20         # NQ 選擇權乘數 ($20/點)
+# ---------- 設定 ----------
+SIGMA_SOURCE = "^VXN"
+S_SOURCE     = "^NDX"
+R            = 0.0525
+MULT         = 20
 
-SPREADSHEET_ID = "1oPHb8dhDBpoN623zU0zEpC7cuiFLCrzWmvlcZsfSYFM"  # ← 請換成你自己的
+SPREADSHEET_ID = "1oPHb8dhDBpoN623zU0zEpC7cuiFLCrzWmvlcZsfSYFM"
 CSV_DOWNLOAD_DIR = "/tmp/nq_csv"
 
-# Barchart 登入資訊（從 GitHub Secrets 讀取）
 BARCHART_USER = os.environ.get("BARCHART_USER", "")
 BARCHART_PASS = os.environ.get("BARCHART_PASS", "")
-
-# Google Sheets 金鑰（從 GitHub Secrets 讀取）
 GOOGLE_CREDS_JSON = os.environ.get("GOOGLE_SHEETS_CREDENTIALS", "{}")
 
-# ────────────────────────────────────────────
-# 1. 瀏覽器自動下載 Barchart CSV
-# ────────────────────────────────────────────
+# ---------- 1. 自動下載 CSV (使用直接 URL) ----------
 def download_barchart_csv():
-    """优先使用本地 CSV，失败则尝试自动下载"""
     local_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nq_options.csv")
     
-    # 如果仓库里有 CSV，直接使用
+    # 如果本地已有，直接使用
     if os.path.exists(local_csv):
-        print(f"✅ 使用本地 CSV 文件: {local_csv}")
+        print(f"✅ 使用本地 CSV: {local_csv}")
         return local_csv
-    
-    # 没有本地文件时，尝试自动下载
+
     if not BARCHART_USER or not BARCHART_PASS:
-        raise FileNotFoundError(f"找不到 {local_csv}，且未设置 Barchart 登录信息，无法自动下载")
+        raise FileNotFoundError("請上傳 nq_options.csv 或設定 Barchart 帳號")
 
     os.makedirs(CSV_DOWNLOAD_DIR, exist_ok=True)
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(
-                viewport={"width": 1280, "height": 720},
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                accept_downloads=True,
-            )
-            page = context.new_page()
 
-            # 登录
-            page.goto("https://www.barchart.com/login", wait_until="networkidle")
-            page.wait_for_timeout(2000)
-            page.fill("input[name='email']", BARCHART_USER)
-            page.fill("input[type='password']", BARCHART_PASS)
-            page.click("button[type='submit']")
-            page.wait_for_load_state("networkidle")
-            print("✅ 已登入 Barchart")
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(accept_downloads=True)
+        page = context.new_page()
 
-            # NQ 选择权页面
-            page.goto("https://www.barchart.com/futures/quotes/NQ*0/options", wait_until="networkidle")
-            page.wait_for_timeout(5000)
+        # 登入
+        page.goto("https://www.barchart.com/login", wait_until="networkidle")
+        page.fill("input[name='email']", BARCHART_USER)
+        page.fill("input[type='password']", BARCHART_PASS)
+        page.click("button[type='submit']")
+        page.wait_for_load_state("networkidle")
+        print("✅ 已登入")
 
-            # 尝试下载
-            download_selectors = [
-                "text=Download", "text=download", "text=CSV", "text=Export",
-                "a:has-text('Download')", "button:has-text('Download')",
-                "[class*='download']", "[class*='icon-download']", ".download-csv",
-                "[data-ng-click*='download']"
-            ]
-            download_success = False
-            for sel in download_selectors:
-                try:
-                    with page.expect_download(timeout=8000) as download_info:
-                        page.click(sel)
-                    download_success = True
-                    break
-                except:
-                    continue
-
-            # 尝试直接拼接下载 URL
-            if not download_success:
-                try:
-                    download_url = "https://www.barchart.com/futures/quotes/NQ*0/options/download"
-                    with page.expect_download(timeout=8000) as download_info:
-                        page.goto(download_url)
-                    download_success = True
-                except:
-                    pass
-
-            if not download_success:
-                page.screenshot(path="/tmp/nq_page.png")
-                raise RuntimeError("自动下载失败，请手动下载 CSV 并上传到仓库根目录")
-
+        # 直接訪問下載 URL (你找到的那個)
+        download_url = "https://www.barchart.com/futures/quotes/NQU26/options/download?futuresOptionsView=merged"
+        try:
+            with page.expect_download(timeout=15000) as download_info:
+                page.goto(download_url)
             download = download_info.value
             csv_path = os.path.join(CSV_DOWNLOAD_DIR, "nq_options.csv")
             download.save_as(csv_path)
-            print(f"✅ CSV 已自动下载至 {csv_path}")
-            browser.close()
-            return csv_path
+            print(f"✅ CSV 已下載至 {csv_path}")
+            success = True
+        except Exception as e:
+            print(f"❌ 直接下載失敗: {e}")
+            success = False
 
-    except Exception as e:
-        print(f"⚠️ 自动下载失败: {e}")
-        if os.path.exists(local_csv):
-            print(f"✅ 回退使用本地 CSV: {local_csv}")
-            return local_csv
-        else:
-            raise FileNotFoundError(f"自动下载失败，且本地也没有 nq_options.csv。请手动下载并上传到仓库。")
+        browser.close()
+        
+        if not success:
+            if os.path.exists(local_csv):
+                print("✅ 回退使用本地 CSV")
+                return local_csv
+            raise RuntimeError("自動下載失敗，且無本地 CSV")
+    
+    return csv_path
 
-# ────────────────────────────────────────────
-# 2. Yahoo Finance 抓取數據
-# ────────────────────────────────────────────
-def get_yahoo_quote(symbol):
-    import yfinance as yf
-    ticker = yf.Ticker(symbol)
-    hist = ticker.history(period="1d")
-    if not hist.empty:
-        return hist['Close'].iloc[-1]
-    else:
-        return ticker.fast_info.last_price
-
-# ────────────────────────────────────────────
-# 3. 解析 Barchart CSV
-# ────────────────────────────────────────────
+# ---------- 2. 解析 CSV ----------
 def parse_barchart_csv(file_path):
     rows = []
     with open(file_path, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f, delimiter='\t')
+        first_line = f.readline()
+        f.seek(0)
+        delimiter = '\t' if '\t' in first_line else ','
+        reader = csv.DictReader(f, delimiter=delimiter)
+        
+        # 處理可能的列名大小寫或空格
+        headers = [h.strip() for h in (reader.fieldnames or [])]
+        strike_key = next((h for h in headers if h.lower().startswith('strike')), 'Strike')
+        oi_key = next((h for h in headers if 'open int' in h.lower()), 'Open Int')
+        type_key = next((h for h in headers if h.lower().strip() == 'type'), 'Type')
+        time_key = next((h for h in headers if h.lower().strip() == 'time'), 'Time')
+        
         for r in reader:
-            strike_str = r.get('Strike', '')
-            oi_str = r.get('Open Int', '0')
-            typ = r.get('Type', '')
-            time_str = r.get('Time', '')
+            strike_str = r.get(strike_key, '')
+            oi_str = r.get(oi_key, '0')
+            typ = r.get(type_key, '')
+            time_str = r.get(time_key, '')
 
-            if not strike_str:
-                continue
+            if not strike_str: continue
             is_call = strike_str.endswith('C')
             is_put = strike_str.endswith('P')
-            if not is_call and not is_put:
-                continue
+            if not is_call and not is_put: continue
 
             try:
                 strike = float(strike_str[:-1].replace(',', ''))
-            except:
-                continue
+            except: continue
             try:
                 oi = float(oi_str.replace(',', ''))
-            except:
-                oi = 0.0
+            except: oi = 0.0
 
             expiry = None
             if time_str and time_str != '0':
-                try:
-                    expiry = datetime.strptime(time_str, '%m/%d/%y')
-                except:
-                    pass
+                try: expiry = datetime.strptime(time_str, '%m/%d/%y')
+                except: pass
 
-            rows.append({
-                'strike': strike,
-                'oi': oi,
-                'type': 'call' if is_call else 'put',
-                'expiry': expiry
-            })
+            rows.append({'strike': strike, 'oi': oi, 'type': 'call' if is_call else 'put', 'expiry': expiry})
     return rows
 
-# ────────────────────────────────────────────
-# 4. Black-Scholes Gamma + GEX 計算
-# ────────────────────────────────────────────
+# ---------- 3. GEX 計算 ----------
 def bs_gamma(S, K, T, sigma):
-    if T <= 0 or S <= 0 or K <= 0 or sigma <= 0:
-        return 0.0
+    if T <= 0 or S <= 0 or K <= 0 or sigma <= 0: return 0.0
     d1 = (math.log(S/K) + (R + sigma**2/2)*T) / (sigma * math.sqrt(T))
     return math.exp(-d1**2/2) / (S * sigma * math.sqrt(T)) / math.sqrt(2*math.pi)
 
 def time_to_expiry(expiry):
-    if not expiry:
-        return 30.0 / 365.0
+    if not expiry: return 30.0/365.0
     days = (expiry - datetime.now()).days
     return max(days, 1) / 365.0
 
 def calc_nq_gex(details, S, sigma):
-    if not details or S is None:
-        return []
-
+    if not details or S is None: return []
     strike_map = defaultdict(lambda: {"call_oi":0,"put_oi":0,"call_gex":0.0,"put_gex":0.0})
     for d in details:
         K = d["strike"]
@@ -210,13 +150,11 @@ def calc_nq_gex(details, S, sigma):
         cp_ratio = round(v["call_oi"]/v["put_oi"], 2) if v["put_oi"] > 0 else 999.0
         weight = round((v["call_oi"]+v["put_oi"])/total_oi*100, 1) if total_oi > 0 else 0
         result.append({
-            "履約價": K,
-            "call_oi": v["call_oi"], "put_oi": v["put_oi"],
+            "履約價": K, "call_oi": v["call_oi"], "put_oi": v["put_oi"],
             "gex": net_gex, "cp_ratio": cp_ratio, "weight": weight,
             "is_zero_gamma": False, "is_big_money": weight >= 5.0
         })
 
-    # ZG 累積翻正
     sorted_res = sorted(result, key=lambda x: x["履約價"])
     cum = 0.0; prev_cum = 0.0; zg_strike = None
     for r in sorted_res:
@@ -232,23 +170,10 @@ def calc_nq_gex(details, S, sigma):
             if abs(cum) < best_diff:
                 best_diff = abs(cum); zg_strike = r["履約價"]
     for r in result:
-        if r["履約價"] == zg_strike:
-            r["is_zero_gamma"] = True
+        if r["履約價"] == zg_strike: r["is_zero_gamma"] = True
     return result
 
-# ────────────────────────────────────────────
-# 5. 生成 TradingView 字串
-# ────────────────────────────────────────────
-def generate_tv_string(gex_data):
-    parts = []
-    for d in sorted(gex_data, key=lambda x: x["履約價"], reverse=True):
-        zg = 1 if d["is_zero_gamma"] else 0
-        parts.append(f"{d['履約價']},{d['call_oi']},{d['put_oi']},{d['gex']:.2f},{d['cp_ratio']},{zg}")
-    return ";".join(parts)
-
-# ────────────────────────────────────────────
-# 6. 寫入 Google Sheets
-# ────────────────────────────────────────────
+# ---------- 4. 寫入 Google Sheets ----------
 def connect_gsheet():
     import gspread
     from google.oauth2.service_account import Credentials
@@ -275,8 +200,7 @@ def write_to_sheet(gex_data, tv_string):
     for d in sorted(gex_data, key=lambda x: x["履約價"], reverse=True):
         rows.append([
             datetime.now().strftime("%Y/%m/%d"),
-            d["履約價"],
-            d["call_oi"], d["put_oi"],
+            d["履約價"], d["call_oi"], d["put_oi"],
             d["gex"], d["cp_ratio"], d["weight"],
             "✅ 多空分界" if d["is_zero_gamma"] else "",
             "💰 大資金" if d["is_big_money"] else "",
@@ -284,48 +208,41 @@ def write_to_sheet(gex_data, tv_string):
     ws.append_rows(rows)
     print(f"✅ 已寫入 {len(rows)} 筆至 NQ 合併")
 
-# ────────────────────────────────────────────
-# 7. 主程式
-# ────────────────────────────────────────────
+# ---------- 5. 主程式 ----------
 def main():
     print("=" * 60)
-    print("NQ GEX 全自動爬蟲 v1.0")
+    print("NQ GEX 全自動爬蟲 v1.2 (穩定版)")
     print("=" * 60)
 
-    print("\n📥 下載 Barchart CSV...")
     csv_path = download_barchart_csv()
 
-    print("\n📈 抓取 ^VXN 與 ^NDX...")
-    sigma = get_yahoo_quote(SIGMA_SOURCE)
-    S = get_yahoo_quote(S_SOURCE)
-    if sigma is None:
-        sigma = 0.20
-    if S is None:
-        raise RuntimeError("無法取得 ^NDX 現價")
-    print(f"✅ ^VXN = {sigma:.4f}, ^NDX = {S:.2f}")
+    import yfinance as yf
+    sigma = yf.Ticker(SIGMA_SOURCE).history(period="1d")['Close'].iloc[-1]
+    S = yf.Ticker(S_SOURCE).history(period="1d")['Close'].iloc[-1]
+    print(f"✅ ^VXN = {sigma:.2f}, ^NDX = {S:.2f}")
 
-    print("\n🧾 解析 CSV...")
     details = parse_barchart_csv(csv_path)
-    print(f"✅ 讀取 {len(details)} 筆明細")
+    print(f"✅ 解析 {len(details)} 筆明細")
+    if not details:
+        print("❌ 無資料，結束")
+        return
 
-    print("\n🧮 計算 Black-Scholes GEX...")
     gex_data = calc_nq_gex(details, S, sigma)
+    if not gex_data:
+        print("❌ GEX 計算失敗")
+        return
 
     top_call = sorted(gex_data, key=lambda x: x["call_oi"], reverse=True)[0]
     top_put  = sorted(gex_data, key=lambda x: x["put_oi"], reverse=True)[0]
-    zg_row   = next((r for r in gex_data if r["is_zero_gamma"]), None)
+    zg_row = next((r for r in gex_data if r["is_zero_gamma"]), None)
     print(f"  最大壓力: {top_call['履約價']} (Call OI {top_call['call_oi']:,})")
     print(f"  最大支撐: {top_put['履約價']} (Put OI {top_put['put_oi']:,})")
-    if zg_row:
-        print(f"  Zero Gamma: {zg_row['履約價']}")
+    if zg_row: print(f"  Zero Gamma: {zg_row['履約價']}")
 
-    tv_string = generate_tv_string(gex_data)
-
-    print("\n📝 寫入 Google Sheets...")
+    tv_string = ";".join([f"{d['履約價']},{d['call_oi']},{d['put_oi']},{d['gex']:.2f},{d['cp_ratio']},{1 if d['is_zero_gamma'] else 0}"
+                          for d in sorted(gex_data, key=lambda x: x["履約價"], reverse=True)])
     write_to_sheet(gex_data, tv_string)
-
-    os.remove(csv_path)
-    print(f"\n✅ 全部完成！")
+    print("\n✅ 全部完成！")
 
 if __name__ == "__main__":
     main()
