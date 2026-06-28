@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NQ 選擇權 GEX 全自動爬蟲 v1.2 (穩定版)
-- 使用直接下載 URL，不再點擊按鈕
-- 自動處理 CSV 格式差異
+NQ 選擇權 GEX 全自動爬蟲 v1.3 (穩定版)
+- 使用最新的 NQU26 合約下載 URL
+- 優先使用已上傳的 nq_options.csv（如果存在）
+- 自動解析 CSV 並計算 Black-Scholes GEX
 - 寫入 Google 試算表「NQ 合併」
 """
 
@@ -25,11 +26,11 @@ BARCHART_USER = os.environ.get("BARCHART_USER", "")
 BARCHART_PASS = os.environ.get("BARCHART_PASS", "")
 GOOGLE_CREDS_JSON = os.environ.get("GOOGLE_SHEETS_CREDENTIALS", "{}")
 
-# ---------- 1. 自動下載 CSV (使用直接 URL) ----------
+# ---------- 1. 下載 CSV ----------
 def download_barchart_csv():
     local_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nq_options.csv")
     
-    # 如果本地已有，直接使用
+    # 優先使用本地檔案
     if os.path.exists(local_csv):
         print(f"✅ 使用本地 CSV: {local_csv}")
         return local_csv
@@ -52,7 +53,7 @@ def download_barchart_csv():
         page.wait_for_load_state("networkidle")
         print("✅ 已登入")
 
-        # 直接訪問下載 URL (你找到的那個)
+        # 使用 NQU26 (2026年9月) 合約的直接下載 URL
         download_url = "https://www.barchart.com/futures/quotes/NQU26/options/download?futuresOptionsView=merged"
         try:
             with page.expect_download(timeout=15000) as download_info:
@@ -85,12 +86,14 @@ def parse_barchart_csv(file_path):
         delimiter = '\t' if '\t' in first_line else ','
         reader = csv.DictReader(f, delimiter=delimiter)
         
-        # 處理可能的列名大小寫或空格
+        # 列名對照
         headers = [h.strip() for h in (reader.fieldnames or [])]
         strike_key = next((h for h in headers if h.lower().startswith('strike')), 'Strike')
         oi_key = next((h for h in headers if 'open int' in h.lower()), 'Open Int')
         type_key = next((h for h in headers if h.lower().strip() == 'type'), 'Type')
         time_key = next((h for h in headers if h.lower().strip() == 'time'), 'Time')
+        
+        print(f"📋 CSV 列名: {headers}")
         
         for r in reader:
             strike_str = r.get(strike_key, '')
@@ -211,7 +214,7 @@ def write_to_sheet(gex_data, tv_string):
 # ---------- 5. 主程式 ----------
 def main():
     print("=" * 60)
-    print("NQ GEX 全自動爬蟲 v1.2 (穩定版)")
+    print("NQ GEX 全自動爬蟲 v1.3 (穩定版)")
     print("=" * 60)
 
     csv_path = download_barchart_csv()
