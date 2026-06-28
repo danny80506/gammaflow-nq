@@ -41,42 +41,75 @@ def download_barchart_csv():
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(accept_downloads=True)
+        context = browser.new_context(
+            viewport={"width": 1280, "height": 720},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            accept_downloads=True,
+        )
         page = context.new_page()
 
-        # 登入 Barchart
-        page.goto("https://www.barchart.com/login")
-        page.wait_for_load_state("networkidle")
-        
-        # 尝试点击 "Sign in with Email" 按钮（如果存在），以展开邮箱登录表单
+        # 尝试 stealth 注入（如果装了 playwright-stealth）
         try:
-            page.click("text=Sign in with Email", timeout=5000)
-        except:
-            pass
+            from playwright_stealth import stealth_sync
+            stealth_sync(page)
+        except ImportError:
+            print("⚠️ playwright-stealth 未安装，跳过 stealth 注入")
 
-        # 使用通用选择器输入邮箱和密码
-        page.fill("input[type='email']", BARCHART_USER)
+        # 前往登录页
+        page.goto("https://www.barchart.com/login", wait_until="networkidle")
+        page.wait_for_timeout(2000)
+
+        # 查找并填写登录表单
+        # 尝试多种可能的邮箱输入框选择器
+        email_selectors = [
+            "input[name='email']",
+            "input[type='email']",
+            "input[id='email']",
+            "input[placeholder*='Email']",
+            "input[placeholder*='email']",
+        ]
+        email_input = None
+        for sel in email_selectors:
+            try:
+                email_input = page.wait_for_selector(sel, timeout=3000)
+                if email_input:
+                    break
+            except:
+                continue
+        if not email_input:
+            raise RuntimeError("找不到邮箱输入框，请确认 Barchart 登录页面是否改版")
+
+        # 填写邮箱和密码
+        email_input.fill(BARCHART_USER)
         page.fill("input[type='password']", BARCHART_PASS)
         page.click("button[type='submit']")
         page.wait_for_load_state("networkidle")
         print("✅ 已登入 Barchart")
 
-        # 前往 NQ 選擇權頁面
-        page.goto("https://www.barchart.com/futures/quotes/NQ*0/options")
+        # 前往 NQ 选择权页面
+        page.goto("https://www.barchart.com/futures/quotes/NQ*0/options", wait_until="networkidle")
         page.wait_for_timeout(3000)
 
-        # 點擊下載按鈕（保留原选择器，如有问题再调整）
-        with page.expect_download() as download_info:
-            page.click("text=Download")
-        download = download_info.value
+        # 点击下载按钮（尝试多种可能的文字）
+        download_clicked = False
+        for txt in ["Download", "download", "CSV", "Export"]:
+            try:
+                with page.expect_download(timeout=10000) as download_info:
+                    page.click(f"text={txt}")
+                download_clicked = True
+                break
+            except:
+                continue
+        if not download_clicked:
+            raise RuntimeError("找不到下载按钮")
 
+        download = download_info.value
         csv_path = os.path.join(CSV_DOWNLOAD_DIR, "nq_options.csv")
         download.save_as(csv_path)
-        print(f"✅ CSV 已下載至 {csv_path}")
+        print(f"✅ CSV 已下载至 {csv_path}")
 
         browser.close()
-        return csv_path
-# ────────────────────────────────────────────
+        return csv_path# ────────────────────────────────────────────
 # 2. Yahoo Finance 抓取數據
 # ────────────────────────────────────────────
 def get_yahoo_quote(symbol):
