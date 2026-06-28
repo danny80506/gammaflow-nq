@@ -48,28 +48,26 @@ def download_barchart_csv():
         )
         page = context.new_page()
 
-        # 前往登录页
+        # 1. 前往登录页
         page.goto("https://www.barchart.com/login", wait_until="networkidle")
         page.wait_for_timeout(2000)
 
-        # 查找并填写登录表单
-        email_input = page.wait_for_selector("input[type='email']", timeout=10000)
-        if email_input:
-            email_input.fill(BARCHART_USER)
-        else:
-            # 如果找不到，尝试其他选择器
-            email_input = page.wait_for_selector("input[name='email']", timeout=5000)
-            email_input.fill(BARCHART_USER)
+        # 2. 填写邮箱和密码（使用正确的选择器）
+        # 根据你提供的真实HTML，邮箱输入框是 <input type="text" name="email" placeholder="Login with email">
+        page.fill("input[name='email']", BARCHART_USER)
         page.fill("input[type='password']", BARCHART_PASS)
+        
+        # 3. 点击登录按钮
         page.click("button[type='submit']")
         page.wait_for_load_state("networkidle")
         print("✅ 已登入 Barchart")
 
-        # 前往 NQ 選擇權頁面
+        # 4. 前往 NQ 選擇權頁面
         page.goto("https://www.barchart.com/futures/quotes/NQ*0/options", wait_until="networkidle")
         page.wait_for_timeout(3000)
 
-        # 尝试多种下载按钮选择器（按常见顺序）
+        # 5. 尝试多种下载按钮选择器
+        download_clicked = False
         download_selectors = [
             "text=Download",
             "text=download",
@@ -81,7 +79,6 @@ def download_barchart_csv():
             "[class*='icon-download']",
             ".download-csv",
         ]
-        download_clicked = False
         for sel in download_selectors:
             try:
                 with page.expect_download(timeout=8000) as download_info:
@@ -92,7 +89,7 @@ def download_barchart_csv():
                 continue
 
         if not download_clicked:
-            # 如果所有选择器都失败，截图保存到 /tmp
+            # 如果所有选择器都失败，截图保存以便调试
             page.screenshot(path="/tmp/nq_page.png")
             raise RuntimeError("找不到下载按钮，截图已保存至 /tmp/nq_page.png，请检查截图或手动下载")
 
