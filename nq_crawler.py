@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NQ 選擇權 GEX 全自動爬蟲 v1.4
-- 假日不執行
-- 防錯機制（數據量異常時跳過寫入）
-- 優先使用本地 CSV，自動下載為備援
-- 寫入日期使用台北時間（UTC+8），與 Apps Script 同步
+NQ 選擇權 GEX 全自動爬蟲 v1.5
+- 自動判斷季度合約（到期日 = 第三個週五）
+- 每日總 Call/Put OI 變化 + 累計趨勢
+- 籌碼分析寫入試算表
 """
 
 import os, csv, math, json, time
@@ -26,21 +25,61 @@ BARCHART_USER = os.environ.get("BARCHART_USER", "")
 BARCHART_PASS = os.environ.get("BARCHART_PASS", "")
 GOOGLE_CREDS_JSON = os.environ.get("GOOGLE_SHEETS_CREDENTIALS", "{}")
 
-# ---------- 假日判斷 ----------
-def is_us_market_open():
-    """簡單判斷：周末一定休市（使用台北時間）"""
+# NQ 季度合約對照表
+NQ_QUARTER_MAP = {
+    3:  {"code": "H", "name": "mar"},
+    6:  {"code": "M", "name": "jun"},
+    9:  {"code": "U", "name": "sep"},
+    12: {"code": "Z", "name": "dec"},
+}
+
+# ---------- 輔助函數 ----------
+def get_third_friday(year, month):
+    """計算指定年月的第三個週五"""
+    first_day = datetime(year, month, 1)
+    days_until_friday = (4 - first_day.weekday()) % 7
+    first_friday = first_day + timedelta(days=days_until_friday)
+    return first_friday + timedelta(days=14)
+
+def get_current_nq_contract():
+    """自動判斷當前該下載哪個 NQ 合約"""
     tw_now = datetime.now(timezone(timedelta(hours=8)))
     today = tw_now.date()
-    # 周六(5) 周日(6) 休市
+    current_year = tw_now.year
+
+    for month in [3, 6, 9, 12]:
+        expiry = get_third_friday(current_year, month)
+        if today <= expiry:
+            yr_suffix = str(current_year)[-2:]
+            info = NQ_QUARTER_MAP[month]
+            return {
+                "symbol": f"NQ{info['code']}{yr_suffix}",
+                "month_str": f"{info['name']}-{yr_suffix}",
+                "expiry": expiry.strftime("%Y-%m-%d")
+            }
+
+    # 已過 12 月到期日，跳到下一年 3 月
+    next_year = current_year + 1
+    yr_suffix = str(next_year)[-2:]
+    info = NQ_QUARTER_MAP[3]
+    expiry = get_third_friday(next_year, 3)
+    return {
+        "symbol": f"NQ{info['code']}{yr_suffix}",
+        "month_str": f"{info['name']}-{yr_suffix}",
+        "expiry": expiry.strftime("%Y-%m-%d")
+    }
+
+# ---------- 假日判斷 ----------
+def is_us_market_open():
+    tw_now = datetime.now(timezone(timedelta(hours=8)))
+    today = tw_now.date()
     if today.weekday() >= 5:
         return False
-    # 以後可以手動加入美股假日列表
     return True
 
 # ---------- 1. 下載 CSV ----------
 def download_barchart_csv():
     local_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nq_options.csv")
-    
     if os.path.exists(local_csv):
         print(f"✅ 使用本地 CSV: {local_csv}")
         return local_csv
@@ -50,12 +89,19 @@ def download_barchart_csv():
 
     os.makedirs(CSV_DOWNLOAD_DIR, exist_ok=True)
 
+    # 自動判斷合約
+    contract = get_current_nq_contract()
+    print(f"📅 當前合約: {contract['symbol']}（到期日: {contract['expiry']}）")
+    download_url = (
+        f"https://www.barchart.com/futures/quotes/{contract['symbol']}/"
+        f"options/{contract['month_str']}?futuresOptionsView=merged&moneyness=allRows"
+    )
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(accept_downloads=True)
         page = context.new_page()
 
-        # 登入
         page.goto("https://www.barchart.com/login", wait_until="networkidle")
         page.fill("input[name='email']", BARCHART_USER)
         page.fill("input[type='password']", BARCHART_PASS)
@@ -63,10 +109,6 @@ def download_barchart_csv():
         page.wait_for_load_state("networkidle")
         print("✅ 已登入")
 
-        # 使用完整履約價 URL
-        download_url = "https://www.barchart.com/futures/quotes/NQU26/options/sep-26?futuresOptionsView=merged&moneyness=allRows"
-        
-        # 嘗試直接下載
         try:
             with page.expect_download(timeout=15000) as download_info:
                 page.goto(download_url)
@@ -80,13 +122,13 @@ def download_barchart_csv():
             success = False
 
         browser.close()
-        
+
         if not success:
             if os.path.exists(local_csv):
                 print("✅ 回退使用本地 CSV")
                 return local_csv
             raise RuntimeError("自動下載失敗，且無本地 CSV")
-    
+
     return csv_path
 
 # ---------- 2. 解析 CSV ----------
@@ -97,13 +139,13 @@ def parse_barchart_csv(file_path):
         f.seek(0)
         delimiter = '\t' if '\t' in first_line else ','
         reader = csv.DictReader(f, delimiter=delimiter)
-        
+
         headers = [h.strip() for h in (reader.fieldnames or [])]
         strike_key = next((h for h in headers if h.lower().startswith('strike')), 'Strike')
         oi_key = next((h for h in headers if 'open int' in h.lower()), 'Open Int')
         type_key = next((h for h in headers if h.lower().strip() == 'type'), 'Type')
         time_key = next((h for h in headers if h.lower().strip() == 'time'), 'Time')
-        
+
         for r in reader:
             strike_str = r.get(strike_key, '')
             oi_str = r.get(oi_key, '0')
@@ -115,11 +157,9 @@ def parse_barchart_csv(file_path):
             is_put = strike_str.endswith('P')
             if not is_call and not is_put: continue
 
-            try:
-                strike = float(strike_str[:-1].replace(',', ''))
+            try: strike = float(strike_str[:-1].replace(',', ''))
             except: continue
-            try:
-                oi = float(oi_str.replace(',', ''))
+            try: oi = float(oi_str.replace(',', ''))
             except: oi = 0.0
 
             expiry = None
@@ -195,6 +235,12 @@ def connect_gsheet():
     client = gspread.authorize(creds)
     return client.open_by_key(SPREADSHEET_ID)
 
+def ensure_sheet(sh, name, rows=500, cols=12):
+    try:
+        return sh.worksheet(name)
+    except:
+        return sh.add_worksheet(title=name, rows=rows, cols=cols)
+
 def write_to_sheet(gex_data, tv_string):
     sh = connect_gsheet()
     try:
@@ -208,14 +254,13 @@ def write_to_sheet(gex_data, tv_string):
     ws.append_row([""])
     ws.append_row(["更新日期","履約價","CallOI","PutOI","GEX","C/P比","佔比%","Zero Gamma","大資金"])
 
-    # ✅ 修改重點：使用台北時間（UTC+8）寫入日期
     tw_now = datetime.now(timezone(timedelta(hours=8)))
     date_str = tw_now.strftime("%Y/%m/%d")
 
     rows = []
     for d in sorted(gex_data, key=lambda x: x["履約價"], reverse=True):
         rows.append([
-            date_str,          # 台北日期
+            date_str,
             d["履約價"], d["call_oi"], d["put_oi"],
             d["gex"], d["cp_ratio"], d["weight"],
             "✅ 多空分界" if d["is_zero_gamma"] else "",
@@ -224,13 +269,82 @@ def write_to_sheet(gex_data, tv_string):
     ws.append_rows(rows)
     print(f"✅ 已寫入 {len(rows)} 筆至 NQ 合併")
 
-# ---------- 5. 主程式 ----------
+# ---------- 5. 籌碼分析 ----------
+def write_nq_chips_analysis(sh, gex_data, today_str):
+    ws = ensure_sheet(sh, "NQ 籌碼分析", rows=500, cols=10)
+    # 計算總 OI
+    total_call = sum(d["call_oi"] for d in gex_data)
+    total_put = sum(d["put_oi"] for d in gex_data)
+    cp_ratio = round(total_call / total_put, 2) if total_put > 0 else 0
+
+    # 最大 Call / Put OI
+    max_call = max(gex_data, key=lambda x: x["call_oi"])
+    max_put = max(gex_data, key=lambda x: x["put_oi"])
+
+    # 讀取昨日數據
+    all_rows = ws.get_all_values()
+    if len(all_rows) > 1:
+        last_row = all_rows[-1]
+        prev_call = int(last_row[1]) if last_row[1] else 0
+        prev_put = int(last_row[2]) if last_row[2] else 0
+    else:
+        prev_call = 0
+        prev_put = 0
+
+    call_change = total_call - prev_call
+    put_change = total_put - prev_put
+
+    # 寫入或更新
+    dates = ws.col_values(1)
+    row_data = [today_str, total_call, total_put, cp_ratio, call_change, put_change,
+                max_call["履約價"], max_call["call_oi"],
+                max_put["履約價"], max_put["put_oi"]]
+    if today_str in dates:
+        idx = dates.index(today_str) + 1
+        ws.update(f"A{idx}:J{idx}", [row_data])
+    else:
+        ws.append_row(row_data)
+    print(f"✅ 已寫入 NQ 籌碼分析")
+
+# ---------- 6. 累計趨勢 ----------
+def write_nq_cumulative(sh, gex_data, today_str):
+    ws = ensure_sheet(sh, "NQ 累計趨勢", rows=500, cols=8)
+    total_call = sum(d["call_oi"] for d in gex_data)
+    total_put = sum(d["put_oi"] for d in gex_data)
+
+    all_rows = ws.get_all_values()
+    if len(all_rows) > 1:
+        last_row = all_rows[-1]
+        prev_call = int(last_row[1]) if last_row[1] else 0
+        prev_put = int(last_row[2]) if last_row[2] else 0
+        prev_cum_call = int(last_row[5]) if len(last_row) > 5 and last_row[5] else 0
+        prev_cum_put = int(last_row[6]) if len(last_row) > 6 and last_row[6] else 0
+    else:
+        prev_call = 0
+        prev_put = 0
+        prev_cum_call = 0
+        prev_cum_put = 0
+
+    call_change = total_call - prev_call
+    put_change = total_put - prev_put
+    cum_call = prev_cum_call + call_change
+    cum_put = prev_cum_put + put_change
+
+    dates = ws.col_values(1)
+    row_data = [today_str, total_call, total_put, call_change, put_change, cum_call, cum_put]
+    if today_str in dates:
+        idx = dates.index(today_str) + 1
+        ws.update(f"A{idx}:G{idx}", [row_data])
+    else:
+        ws.append_row(row_data)
+    print(f"✅ 已寫入 NQ 累計趨勢")
+
+# ---------- 7. 主程式 ----------
 def main():
     print("=" * 60)
-    print("NQ GEX 全自動爬蟲 v1.4")
+    print("NQ GEX 全自動爬蟲 v1.5")
     print("=" * 60)
 
-    # 假日判斷 (使用台北日期)
     if not is_us_market_open():
         print("⏸️ 今日為美股休市日（週末），跳過爬蟲")
         return
@@ -244,8 +358,7 @@ def main():
 
     details = parse_barchart_csv(csv_path)
     print(f"✅ 解析 {len(details)} 筆明細")
-    
-    # 防錯機制：數據量異常時跳過
+
     if len(details) < 50:
         print(f"❌ 數據量異常（僅 {len(details)} 筆），可能是 Barchart 尚未更新，跳過寫入")
         return
@@ -264,7 +377,15 @@ def main():
 
     tv_string = ";".join([f"{d['履約價']},{d['call_oi']},{d['put_oi']},{d['gex']:.2f},{d['cp_ratio']},{1 if d['is_zero_gamma'] else 0}"
                           for d in sorted(gex_data, key=lambda x: x["履約價"], reverse=True)])
+
+    tw_now = datetime.now(timezone(timedelta(hours=8)))
+    today_str = tw_now.strftime("%Y/%m/%d")
+
+    sh = connect_gsheet()
     write_to_sheet(gex_data, tv_string)
+    write_nq_chips_analysis(sh, gex_data, today_str)
+    write_nq_cumulative(sh, gex_data, today_str)
+
     print("\n✅ 全部完成！")
 
 if __name__ == "__main__":
