@@ -78,10 +78,12 @@
             <div class="card"><h3>🔴 最大壓力</h3><div class="big red" id="mResist">-</div><div class="sub" id="mResistOI"></div></div>
             <div class="card"><h3>🟢 最大支撐</h3><div class="big green" id="mSupport">-</div><div class="sub" id="mSupportOI"></div></div>
             <div class="card"><h3>⚡ Zero Gamma</h3><div class="big purple" id="mZG">-</div><div class="sub">多空分界</div></div>
-            <div class="card"><h3>📈 NQ 參考價</h3><div class="big" id="mRef">-</div><div class="sub" id="mPos"></div></div>
+            <div class="card"><h3>📈 NQ 參考價</h3><div class="big" id="mRef">⏳</div><div class="sub" id="mPos"></div></div>
         </div>
         <div class="section-title" style="margin-top:24px;">📊 美股市場總覽</div>
-        <div class="summary-grid" id="marketCards"></div>
+        <div class="summary-grid" id="marketCards">
+            <div class="card" style="grid-column:1/-1;text-align:center;color:var(--text3);">⏳ 美股市場數據等待爬蟲寫入</div>
+        </div>
         <div class="card" style="margin-top:24px"><h3>GAMMA指標數據</h3><div class="copy-row"><span>NQ 合併</span><input class="copy-input" id="tvInput" readonly><button class="copy-btn" onclick="copyTV()">📋 複製</button></div></div>
         <div class="update-time" id="updateTime">最後更新：載入中...</div>
     </div>
@@ -100,7 +102,9 @@
     </div>
     <div id="sr" class="section">
         <div style="font-size:13px; color:var(--text2); margin-bottom:16px;">📅 NQ 選擇權｜<span style="color:#ff6b6b;">◀ 壓力(Call)</span> ｜ <span style="color:#5cdba3;">支撐(Put) ▶</span> ｜ 條寬 = 未平倉量</div>
-        <div id="srRating"></div>
+        <div id="srRating">
+            <div style="margin:16px 0;background:var(--bg2);border-radius:4px;padding:12px 16px;border-left:3px solid var(--primary-light);color:var(--text3);">⏳ 壓力支撐評級表需等待 NQ 市場數據寫入</div>
+        </div>
         <div class="energy-container" id="srList"></div>
         <div class="update-time" id="srTime"></div>
     </div>
@@ -130,10 +134,12 @@
         // ========== 市場數據 ==========
         async function loadMarket() {
             const csv = await fetchRawCSV("NQ 市場數據");
+            if (!csv) {
+                DATA.market = null;
+                return;  // 保持 HTML 中预设的「等待写入」状态，不做任何修改
+            }
             const rows = csvToRows(csv);
             if (rows.length < 2 || !rows[0][0].includes('日期')) {
-                document.getElementById('marketCards').innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;color:var(--text3);">⏳ 美股市場數據尚未就緒，等待爬蟲寫入</div>';
-                document.getElementById('mRef').textContent = '-';
                 DATA.market = null;
                 return;
             }
@@ -153,6 +159,8 @@
                 }
                 return `<div class="card"><h3>${lb}</h3><div class="big">${v}</div>${c}</div>`;
             }).join('');
+            // 有市場數據後，更新評級表
+            buildRatingTable();
         }
 
         // ========== 籌碼分析 ==========
@@ -198,7 +206,7 @@
             buildCumulativeChart();
         }
 
-        // ========== 選擇權合併 (修正 ZG 讀取：直接檢查文字) ==========
+        // ========== 選擇權合併 (ZG 用文字判斷) ==========
         async function loadSR() {
             const csv = await fetchRawCSV("NQ 合併");
             const rows = csvToRows(csv);
@@ -206,31 +214,27 @@
             const dataRows = rows.slice(4);
             DATA.sr = dataRows.map(r => ({
                 strike: safeNum(r[1]), callOI: safeNum(r[2]), putOI: safeNum(r[3]),
-                isZG: (r[7] || '').includes('分界')   // ← 核心修正
+                isZG: (r[7] || '').includes('分界')
             })).filter(r => r.strike > 0);
             const zgRow = DATA.sr.find(r => r.isZG);
             DATA.zg = zgRow ? zgRow.strike : null;
             if (DATA.zg) {
                 document.getElementById('mZG').textContent = DATA.zg.toLocaleString();
-                const ref = DATA.market ? DATA.market.ndx : (DATA.maxCall ? DATA.maxCall.strike : 0);
-                if (ref > 0) {
-                    document.getElementById('mPos').textContent = ref > DATA.zg ? '🟢 偏多區' : ref < DATA.zg ? '🔴 偏空區' : '⚪ ZG附近';
-                    if (!DATA.market || !DATA.market.ndx) {
-                        document.getElementById('mRef').textContent = ref.toLocaleString() + ' (估)';
-                    }
+                if (DATA.market && DATA.market.ndx > 0) {
+                    document.getElementById('mPos').textContent = DATA.market.ndx > DATA.zg ? '🟢 偏多區' : DATA.market.ndx < DATA.zg ? '🔴 偏空區' : '⚪ ZG附近';
                 }
             }
             buildSRBars();
-            buildRatingTable();
+            // 只有市場數據存在時才更新評級表
+            if (DATA.market && DATA.market.ndx > 0) {
+                buildRatingTable();
+            }
         }
 
         function buildRatingTable() {
-            let spot = DATA.market && DATA.market.ndx > 0 ? DATA.market.ndx : null;
-            if (!spot && DATA.sr.length > 0) {
-                const strikes = DATA.sr.map(r => r.strike).sort((a,b) => a - b);
-                spot = strikes[Math.floor(strikes.length / 2)];
-            }
-            if (!spot || !DATA.sr.length) { document.getElementById('srRating').innerHTML = ''; return; }
+            if (!DATA.market || !DATA.market.ndx) return;
+            const spot = DATA.market.ndx;
+            if (!DATA.sr.length) return;
 
             let above = [], below = [];
             DATA.sr.forEach(r => {
