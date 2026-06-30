@@ -140,149 +140,156 @@
         function fmt(v) { return (v > 0 ? '+' : '') + Math.round(v).toLocaleString(); }
         function cls(v) { return v > 0 ? 'pos' : v < 0 ? 'neg' : ''; }
 
-        async function fetchSheetCSV(name, range = "A1:Z500") {
+        // 通用CSV获取（返回原始文本）
+        async function fetchRawCSV(sheetName, range = "A1:Z500") {
             try {
-                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}&range=${range}&_=${Date.now()}`;
+                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}&range=${range}&_=${Date.now()}`;
                 const r = await fetch(url);
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 return await r.text();
             } catch (e) { return ''; }
         }
 
-        function parseCSV(csv) {
-            const lines = csv.trim().split('\n');
-            if (lines.length < 2) return [];
-            const headers = lines[0].split(',');
-            return lines.slice(1).map(line => {
-                const cols = line.split(',');
-                const obj = {};
-                headers.forEach((h, i) => {
-                    const key = h.trim() || `col${i}`;
-                    obj[key] = cols[i] ? cols[i].trim() : '';
-                });
-                return obj;
-            });
+        // 将CSV文本按行分割成数组（每行又是逗号分割的数组），跳过空行
+        function csvToRows(csvText) {
+            return csvText.trim().split('\n').filter(line => line.trim() !== '').map(line => line.split(',').map(c => c.replace(/^"|"$/g, '').trim()));
         }
 
-        // 验证工作表是否存在
-        async function checkSheetExists(name) {
-            try {
-                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}&range=A1:A1&_=${Date.now()}`;
-                const r = await fetch(url);
-                return r.ok;
-            } catch (e) { return false; }
-        }
-
+        // ---------- 加载市场数据（按列索引） ----------
         async function loadMarket() {
-            const exists = await checkSheetExists("NQ 市場數據");
-            if (!exists) {
-                document.getElementById('marketCards').innerHTML = '<div class="card full"><div class="energy-empty">⏳ NQ 市場數據工作表尚未建立，請等待爬蟲首次執行</div></div>';
+            const csv = await fetchRawCSV("NQ 市場數據");
+            const rows = csvToRows(csv);
+            if (rows.length < 2) {
+                document.getElementById('marketCards').innerHTML = '<div class="card full"><div class="energy-empty">⏳ 美股市場數據尚未就緒，等待爬蟲寫入</div></div>';
                 return;
             }
-            const csv = await fetchSheetCSV("NQ 市場數據");
-            const rows = parseCSV(csv);
-            if (rows.length === 0) return;
-            DATA.market = rows[rows.length - 1];
+            // 最后一行数据（跳过表头）
+            const last = rows[rows.length - 1];
+            // 列索引: 0日期 1NDX 2NDX涨跌% 3SPX 4SPX涨跌% 5SOX 6SOX涨跌% 7VIX 8VXN 9AAPL 10AAPL涨跌% 11MSFT 12MSFT涨跌% 13NVDA 14NVDA涨跌% 15NQ期货 16NQ期货涨跌% 17TSM 18TSM涨跌%
             const items = [
-                { label: 'NDX', val: DATA.market['NDX'] || DATA.market['col1'], chg: DATA.market['NDX漲跌%'] || DATA.market['col2'] },
-                { label: 'SPX', val: DATA.market['SPX'] || DATA.market['col3'], chg: DATA.market['SPX漲跌%'] || DATA.market['col4'] },
-                { label: 'SOX', val: DATA.market['SOX'] || DATA.market['col5'], chg: DATA.market['SOX漲跌%'] || DATA.market['col6'] },
-                { label: 'VIX', val: DATA.market['VIX'] || DATA.market['col7'], chg: null },
-                { label: 'VXN', val: DATA.market['VXN'] || DATA.market['col8'], chg: null },
-                { label: 'AAPL', val: DATA.market['AAPL'] || DATA.market['col9'], chg: DATA.market['AAPL漲跌%'] || DATA.market['col10'] },
-                { label: 'MSFT', val: DATA.market['MSFT'] || DATA.market['col11'], chg: DATA.market['MSFT漲跌%'] || DATA.market['col12'] },
-                { label: 'NVDA', val: DATA.market['NVDA'] || DATA.market['col13'], chg: DATA.market['NVDA漲跌%'] || DATA.market['col14'] },
-                { label: 'NQ期貨', val: DATA.market['NQ期貨'] || DATA.market['col15'], chg: DATA.market['NQ期貨漲跌%'] || DATA.market['col16'] },
-                { label: 'TSM', val: DATA.market['TSM'] || DATA.market['col17'], chg: DATA.market['TSM漲跌%'] || DATA.market['col18'] }
+                { label: 'NDX', val: safeNum(last[1]), chg: safeNum(last[2]) },
+                { label: 'SPX', val: safeNum(last[3]), chg: safeNum(last[4]) },
+                { label: 'SOX', val: safeNum(last[5]), chg: safeNum(last[6]) },
+                { label: 'VIX', val: safeNum(last[7]), chg: null },
+                { label: 'VXN', val: safeNum(last[8]), chg: null },
+                { label: 'AAPL', val: safeNum(last[9]), chg: safeNum(last[10]) },
+                { label: 'MSFT', val: safeNum(last[11]), chg: safeNum(last[12]) },
+                { label: 'NVDA', val: safeNum(last[13]), chg: safeNum(last[14]) },
+                { label: 'NQ期貨', val: safeNum(last[15]), chg: safeNum(last[16]) },
+                { label: 'TSM', val: safeNum(last[17]), chg: safeNum(last[18]) }
             ];
             let html = '';
             items.forEach(item => {
-                const val = safeNum(item.val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const val = item.val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 let chgHtml = '';
-                if (item.chg !== null && item.chg !== undefined && item.chg !== '') {
-                    const chgVal = parseFloat(item.chg);
-                    if (!isNaN(chgVal)) {
-                        const chgClass = chgVal >= 0 ? 'pos' : 'neg';
-                        chgHtml = `<div class="sub ${chgClass}">${chgVal >= 0 ? '+' : ''}${chgVal.toFixed(2)}%</div>`;
-                    }
+                if (item.chg !== null && !isNaN(item.chg)) {
+                    const chgClass = item.chg >= 0 ? 'pos' : 'neg';
+                    chgHtml = `<div class="sub ${chgClass}">${item.chg >= 0 ? '+' : ''}${item.chg.toFixed(2)}%</div>`;
                 }
                 html += `<div class="card"><h3>${item.label}</h3><div class="big">${val}</div>${chgHtml}</div>`;
             });
             document.getElementById('marketCards').innerHTML = html;
-            document.getElementById('mRef').textContent = safeNum(DATA.market['NDX'] || DATA.market['col1'] || 0).toLocaleString();
+            document.getElementById('mRef').textContent = items[0].val.toLocaleString();
+            DATA.market = { ndx: items[0].val }; // 保存NDX用于偏多偏空判断
         }
 
+        // ---------- 加载筹码分析（按列索引） ----------
         async function loadChips() {
-            const exists = await checkSheetExists("NQ 籌碼分析");
-            if (!exists) return;
-            const csv = await fetchSheetCSV("NQ 籌碼分析");
-            DATA.chips = parseCSV(csv);
+            const csv = await fetchRawCSV("NQ 籌碼分析");
+            const rows = csvToRows(csv);
+            if (rows.length < 2) return;
+            DATA.chips = rows.slice(1).map(r => ({
+                date: r[0],
+                totalCall: safeNum(r[1]),
+                totalPut: safeNum(r[2]),
+                cpRatio: parseFloat(r[3]) || 0,
+                callChange: safeNum(r[4]),
+                putChange: safeNum(r[5]),
+                maxCallPrice: safeNum(r[6]),
+                maxCallOI: safeNum(r[7]),
+                maxPutPrice: safeNum(r[8]),
+                maxPutOI: safeNum(r[9])
+            }));
             if (DATA.chips.length > 0) {
                 const last = DATA.chips[DATA.chips.length - 1];
-                const maxCallPrice = safeNum(last['最大壓力價'] || last['col6']);
-                const maxCallOI = safeNum(last['最大壓力OI'] || last['col7']);
-                const maxPutPrice = safeNum(last['最大支撐價'] || last['col8']);
-                const maxPutOI = safeNum(last['最大支撐OI'] || last['col9']);
-                document.getElementById('mResist').textContent = maxCallPrice.toLocaleString();
-                document.getElementById('mResistOI').textContent = `Call ${Math.round(maxCallOI/1000)}K 口`;
-                document.getElementById('mSupport').textContent = maxPutPrice.toLocaleString();
-                document.getElementById('mSupportOI').textContent = `Put ${Math.round(maxPutOI/1000)}K 口`;
-                DATA.maxCall = { strike: maxCallPrice, oi: maxCallOI };
-                DATA.maxPut = { strike: maxPutPrice, oi: maxPutOI };
+                document.getElementById('mResist').textContent = last.maxCallPrice.toLocaleString();
+                document.getElementById('mResistOI').textContent = `Call ${Math.round(last.maxCallOI/1000)}K 口`;
+                document.getElementById('mSupport').textContent = last.maxPutPrice.toLocaleString();
+                document.getElementById('mSupportOI').textContent = `Put ${Math.round(last.maxPutOI/1000)}K 口`;
+                DATA.maxCall = { strike: last.maxCallPrice, oi: last.maxCallOI };
+                DATA.maxPut = { strike: last.maxPutPrice, oi: last.maxPutOI };
             }
+            // 表格
             const tb = document.getElementById('chipsTbody');
             tb.innerHTML = '';
             [...DATA.chips].reverse().slice(0, 30).forEach(r => {
                 const tr = document.createElement('tr');
-                const d = r['日期'] || r['col0'] || '';
-                const tc = safeNum(r['總CallOI'] || r['col1']).toLocaleString();
-                const tp = safeNum(r['總PutOI'] || r['col2']).toLocaleString();
-                const cc = fmt(safeNum(r['Call變化'] || r['col4']));
-                const pc = fmt(safeNum(r['Put變化'] || r['col5']));
-                const cp = parseFloat(r['C/P比'] || r['col3'] || 0).toFixed(2);
-                tr.innerHTML = `<td>${d}</td><td>${tc}</td><td>${tp}</td><td class="${cls(safeNum(r['Call變化'] || r['col4']))}">${cc}</td><td class="${cls(safeNum(r['Put變化'] || r['col5']))}">${pc}</td><td>${cp}</td>`;
+                tr.innerHTML = `<td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td>${r.cpRatio.toFixed(2)}</td>`;
                 tb.appendChild(tr);
             });
             buildChipsChart();
         }
 
+        // ---------- 加载累计趋势（按列索引） ----------
         async function loadCumulative() {
-            const exists = await checkSheetExists("NQ 累計趨勢");
-            if (!exists) return;
-            const csv = await fetchSheetCSV("NQ 累計趨勢");
-            DATA.cumulative = parseCSV(csv);
+            const csv = await fetchRawCSV("NQ 累計趨勢");
+            const rows = csvToRows(csv);
+            if (rows.length < 2) return;
+            DATA.cumulative = rows.slice(1).map(r => ({
+                date: r[0],
+                totalCall: safeNum(r[1]),
+                totalPut: safeNum(r[2]),
+                callChange: safeNum(r[3]),
+                putChange: safeNum(r[4]),
+                cumCall: safeNum(r[5]),
+                cumPut: safeNum(r[6])
+            }));
             const tb = document.getElementById('cumTbody');
             tb.innerHTML = '';
             [...DATA.cumulative].reverse().slice(0, 60).forEach(r => {
                 const tr = document.createElement('tr');
-                const d = r['日期'] || r['col0'] || '';
-                const tc = safeNum(r['總CallOI'] || r['col1']).toLocaleString();
-                const tp = safeNum(r['總PutOI'] || r['col2']).toLocaleString();
-                const cc = fmt(safeNum(r['Call變化'] || r['col3']));
-                const pc = fmt(safeNum(r['Put變化'] || r['col4']));
-                const cumc = fmt(safeNum(r['累積Call'] || r['col5']));
-                const cump = fmt(safeNum(r['累積Put'] || r['col6']));
-                tr.innerHTML = `<td>${d}</td><td>${tc}</td><td>${tp}</td><td class="${cls(safeNum(r['Call變化'] || r['col3']))}">${cc}</td><td class="${cls(safeNum(r['Put變化'] || r['col4']))}">${pc}</td><td class="${cls(safeNum(r['累積Call'] || r['col5']))}">${cumc}</td><td class="${cls(safeNum(r['累積Put'] || r['col6']))}">${cump}</td>`;
+                tr.innerHTML = `<td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td class="${cls(r.cumCall)}">${fmt(r.cumCall)}</td><td class="${cls(r.cumPut)}">${fmt(r.cumPut)}</td>`;
                 tb.appendChild(tr);
             });
             buildCumulativeChart();
         }
 
+        // ---------- 加载选择权合并数据（含ZG） ----------
+        async function loadSR() {
+            const csv = await fetchRawCSV("NQ 合併");
+            const rows = csvToRows(csv);
+            // 跳过前4行（标题、TV字串、空行、表头）
+            const dataRows = rows.slice(4);
+            DATA.sr = dataRows.map(r => ({
+                strike: safeNum(r[1]),
+                callOI: safeNum(r[2]),
+                putOI: safeNum(r[3]),
+                gex: safeNum(r[4]),
+                zgFlag: r[7] && r[7].includes('分界')
+            })).filter(r => r.strike > 0);
+            const zgRow = DATA.sr.find(r => r.zgFlag);
+            DATA.zg = zgRow ? zgRow.strike : null;
+            if (DATA.zg) {
+                document.getElementById('mZG').textContent = DATA.zg.toLocaleString();
+                const refPrice = DATA.market ? DATA.market.ndx : 0;
+                document.getElementById('mPos').textContent = refPrice > DATA.zg ? '🟢 偏多區' : '🔴 偏空區';
+            }
+            buildSRBars();
+            buildRatingTable();
+        }
+
         function buildRatingTable() {
-            const spot = safeNum(DATA.market ? (DATA.market['NDX'] || DATA.market['col1']) : 0);
+            const spot = DATA.market ? DATA.market.ndx : 0;
             if (!spot || !DATA.sr.length) { document.getElementById('srRating').innerHTML = ''; return; }
             let above = [], below = [];
             DATA.sr.forEach(r => {
-                const strike = safeNum(r['履約價'] || r['col1']);
-                const callOI = safeNum(r['CallOI'] || r['col2']);
-                const putOI = safeNum(r['PutOI'] || r['col3']);
-                const dist = strike - spot;
-                if (dist > 0) above.push({ strike, callOI, putOI, dist });
-                else if (dist < 0) below.push({ strike, callOI, putOI, dist: Math.abs(dist) });
+                const dist = r.strike - spot;
+                if (dist > 0) above.push({ strike: r.strike, callOI: r.callOI, putOI: r.putOI, dist });
+                else if (dist < 0) below.push({ strike: r.strike, callOI: r.callOI, putOI: r.putOI, dist: Math.abs(dist) });
             });
             above.sort((a, b) => a.dist - b.dist);
             below.sort((a, b) => a.dist - b.dist);
-            const topP = above.slice(0, 3);
-            const topS = below.slice(0, 3);
+            const topP = above.slice(0, 3), topS = below.slice(0, 3);
             const sc = DATA.maxCall ? DATA.maxCall.strike : null;
             const sp = DATA.maxPut ? DATA.maxPut.strike : null;
             let html = '<div style="margin: 16px 0; background: var(--bg2); border-radius: 4px; padding: 12px 16px; border-left: 3px solid var(--primary-light);"><div style="font-weight:700; color:var(--primary-light); margin-bottom:8px;">📋 壓力支撐評級表</div><table class="rating-table">';
@@ -305,36 +312,18 @@
             document.getElementById('srRating').innerHTML = html;
         }
 
-        async function loadSR() {
-            const csv = await fetchSheetCSV("NQ 合併");
-            const rows = parseCSV(csv);
-            DATA.sr = rows.filter(r => safeNum(r['履約價'] || r['col1']) > 0);
-            const zgRow = DATA.sr.find(r => String(r['Zero Gamma'] || r['col7'] || '').includes('分界'));
-            DATA.zg = zgRow ? safeNum(zgRow['履約價'] || zgRow['col1']) : null;
-            if (DATA.zg) {
-                document.getElementById('mZG').textContent = DATA.zg.toLocaleString();
-                const refPrice = safeNum(DATA.market ? (DATA.market['NDX'] || DATA.market['col1']) : 0);
-                document.getElementById('mPos').textContent = refPrice > DATA.zg ? '🟢 偏多區' : '🔴 偏空區';
-            }
-            buildSRBars();
-            buildRatingTable();
-        }
-
         function buildSRBars() {
             const div = document.getElementById('srList');
             if (!DATA.sr.length) { div.innerHTML = '<div class="energy-empty">📭 尚無資料</div>'; return; }
-            const sorted = [...DATA.sr].sort((a, b) => safeNum(b['履約價'] || b['col1']) - safeNum(a['履約價'] || a['col1']));
-            const maxTotal = Math.max(1, ...sorted.map(r => safeNum(r['CallOI'] || r['col2']) + safeNum(r['PutOI'] || r['col3'])));
+            const sorted = [...DATA.sr].sort((a, b) => b.strike - a.strike);
+            const maxTotal = Math.max(1, ...sorted.map(r => r.callOI + r.putOI));
             let html = '';
             sorted.forEach((r, idx) => {
-                const strike = safeNum(r['履約價'] || r['col1']);
-                const c = safeNum(r['CallOI'] || r['col2']);
-                const p = safeNum(r['PutOI'] || r['col3']);
-                const cPct = Math.max(3, (c / maxTotal) * 100);
-                const pPct = Math.max(3, (p / maxTotal) * 100);
-                const isZG = DATA.zg === strike;
-                const isMaxC = DATA.maxCall && DATA.maxCall.strike === strike;
-                const isMaxP = DATA.maxPut && DATA.maxPut.strike === strike;
+                const cPct = Math.max(3, (r.callOI / maxTotal) * 100);
+                const pPct = Math.max(3, (r.putOI / maxTotal) * 100);
+                const isZG = DATA.zg === r.strike;
+                const isMaxC = DATA.maxCall && DATA.maxCall.strike === r.strike;
+                const isMaxP = DATA.maxPut && DATA.maxPut.strike === r.strike;
                 let rc = 'energy-row';
                 if (isZG) rc += ' is-zg';
                 if (isMaxC) rc += ' is-maxc';
@@ -343,9 +332,9 @@
                 if (isZG) tags += '<span class="energy-tag zg">ZG</span>';
                 if (isMaxC) tags += '<span class="energy-tag maxc">最強壓</span>';
                 if (isMaxP) tags += '<span class="energy-tag maxp">最強撐</span>';
-                const cD = c >= 1000 ? (c / 1000).toFixed(1) + 'K' : String(c);
-                const pD = p >= 1000 ? (p / 1000).toFixed(1) + 'K' : String(p);
-                html += `<div class="${rc}"><div class="energy-left"><div class="bar-track"><div class="bar-fill" style="width:${cPct}%;">${c > 0 ? `<span class="bar-value">${cD}</span>` : ''}</div></div></div><div class="energy-center"><span class="energy-price">${strike.toLocaleString()}</span>${tags ? `<div class="energy-tags">${tags}</div>` : ''}</div><div class="energy-right"><div class="bar-track"><div class="bar-fill" style="width:${pPct}%;">${p > 0 ? `<span class="bar-value">${pD}</span>` : ''}</div></div></div></div>`;
+                const cD = r.callOI >= 1000 ? (r.callOI / 1000).toFixed(1) + 'K' : String(r.callOI);
+                const pD = r.putOI >= 1000 ? (r.putOI / 1000).toFixed(1) + 'K' : String(r.putOI);
+                html += `<div class="${rc}"><div class="energy-left"><div class="bar-track"><div class="bar-fill" style="width:${cPct}%;">${r.callOI > 0 ? `<span class="bar-value">${cD}</span>` : ''}</div></div></div><div class="energy-center"><span class="energy-price">${r.strike.toLocaleString()}</span>${tags ? `<div class="energy-tags">${tags}</div>` : ''}</div><div class="energy-right"><div class="bar-track"><div class="bar-fill" style="width:${pPct}%;">${r.putOI > 0 ? `<span class="bar-value">${pD}</span>` : ''}</div></div></div></div>`;
             });
             div.innerHTML = html;
         }
@@ -353,12 +342,11 @@
         function buildChipsChart() {
             if (!DATA.chips.length) return;
             const data = DATA.chips.slice(-30);
-            const labels = data.map(r => r['日期'] || r['col0'] || '');
             if (charts.cChips) charts.cChips.destroy();
             charts.cChips = new Chart(document.getElementById('cChips').getContext('2d'), {
-                type: 'line', data: { labels, datasets: [
-                    { label: 'Call OI 變化', data: data.map(r => safeNum(r['Call變化'] || r['col4'])), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
-                    { label: 'Put OI 變化', data: data.map(r => safeNum(r['Put變化'] || r['col5'])), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
+                type: 'line', data: { labels: data.map(r => r.date), datasets: [
+                    { label: 'Call OI 變化', data: data.map(r => r.callChange), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
+                    { label: 'Put OI 變化', data: data.map(r => r.putChange), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
                 ]},
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 } } }, y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
             });
@@ -368,19 +356,18 @@
             if (!DATA.cumulative.length) return;
             const range = parseInt(document.getElementById('cumRange').value || 60);
             const data = DATA.cumulative.slice(-range);
-            const labels = data.map(r => r['日期'] || r['col0'] || '');
             if (charts.cCum) charts.cCum.destroy();
             charts.cCum = new Chart(document.getElementById('cCum').getContext('2d'), {
-                type: 'line', data: { labels, datasets: [
-                    { label: '累積 Call OI', data: data.map(r => safeNum(r['累積Call'] || r['col5'])), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
-                    { label: '累積 Put OI', data: data.map(r => safeNum(r['累積Put'] || r['col6'])), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
+                type: 'line', data: { labels: data.map(r => r.date), datasets: [
+                    { label: '累積 Call OI', data: data.map(r => r.cumCall), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
+                    { label: '累積 Put OI', data: data.map(r => r.cumPut), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
                 ]},
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 } } }, y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
             });
         }
 
         async function loadTVString() {
-            const csv = await fetchSheetCSV("NQ 合併", "A2:A2");
+            const csv = await fetchRawCSV("NQ 合併", "A2:A2");
             document.getElementById('tvInput').value = csv.replace(/"/g, '').trim();
         }
 
@@ -398,12 +385,8 @@
         }
 
         function switchTab(id) {
-            TABS.forEach(t => {
-                const sec = document.getElementById(t);
-                if (sec) sec.classList.remove('active');
-            });
-            const target = document.getElementById(id);
-            if (target) target.classList.add('active');
+            TABS.forEach(t => { const sec = document.getElementById(t); if (sec) sec.classList.remove('active'); });
+            document.getElementById(id).classList.add('active');
             document.querySelectorAll('#tabBar .tab').forEach(t => t.classList.remove('active'));
             const tabBtn = document.querySelector(`#tabBar .tab[data-tab="${id}"]`);
             if (tabBtn) tabBtn.classList.add('active');
@@ -428,6 +411,7 @@
                 document.getElementById('statusText').textContent = '✅ 每日 07:00 自動更新';
             } catch (e) {
                 document.getElementById('statusText').textContent = '❌ 更新失敗';
+                console.error(e);
             }
         }
 
