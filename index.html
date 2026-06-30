@@ -134,15 +134,9 @@
         // ========== 市場數據 ==========
         async function loadMarket() {
             const csv = await fetchRawCSV("NQ 市場數據");
-            if (!csv) {
-                DATA.market = null;
-                return;  // 保持 HTML 中预设的「等待写入」状态，不做任何修改
-            }
+            if (!csv) { DATA.market = null; return; }
             const rows = csvToRows(csv);
-            if (rows.length < 2 || !rows[0][0].includes('日期')) {
-                DATA.market = null;
-                return;
-            }
+            if (rows.length < 2 || !rows[0][0].includes('日期')) { DATA.market = null; return; }
             const last = rows[rows.length - 1];
             DATA.market = { ndx: safeNum(last[1]) };
             document.getElementById('mRef').textContent = DATA.market.ndx > 0 ? DATA.market.ndx.toLocaleString() : '-';
@@ -153,13 +147,9 @@
             document.getElementById('marketCards').innerHTML = items.map(([lb, vi, ci]) => {
                 const v = safeNum(last[vi]).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2});
                 let c = '';
-                if (ci && last[ci]) {
-                    const cv = parseFloat(last[ci]);
-                    if (!isNaN(cv) && cv !== 0) c = `<div class="sub ${cv>0?'pos':'neg'}">${cv>0?'+':''}${cv.toFixed(2)}%</div>`;
-                }
+                if (ci && last[ci]) { const cv = parseFloat(last[ci]); if (!isNaN(cv) && cv !== 0) c = `<div class="sub ${cv>0?'pos':'neg'}">${cv>0?'+':''}${cv.toFixed(2)}%</div>`; }
                 return `<div class="card"><h3>${lb}</h3><div class="big">${v}</div>${c}</div>`;
             }).join('');
-            // 有市場數據後，更新評級表
             buildRatingTable();
         }
 
@@ -169,8 +159,7 @@
             const rows = csvToRows(csv);
             if (rows.length < 1) return;
             DATA.chips = rows.map(r => ({
-                date: r[0],
-                totalCall: safeNum(r[1]), totalPut: safeNum(r[2]), cpRatio: parseFloat(r[3])||0,
+                date: r[0], totalCall: safeNum(r[1]), totalPut: safeNum(r[2]), cpRatio: parseFloat(r[3])||0,
                 callChange: safeNum(r[4]), putChange: safeNum(r[5]),
                 maxCallPrice: safeNum(r[6]), maxCallOI: safeNum(r[7]),
                 maxPutPrice: safeNum(r[8]), maxPutOI: safeNum(r[9])
@@ -206,7 +195,7 @@
             buildCumulativeChart();
         }
 
-        // ========== 選擇權合併 (ZG 用文字判斷) ==========
+        // ========== 選擇權合併 (ZG 直接檢查原始字串) ==========
         async function loadSR() {
             const csv = await fetchRawCSV("NQ 合併");
             const rows = csvToRows(csv);
@@ -225,41 +214,22 @@
                 }
             }
             buildSRBars();
-            // 只有市場數據存在時才更新評級表
-            if (DATA.market && DATA.market.ndx > 0) {
-                buildRatingTable();
-            }
+            if (DATA.market && DATA.market.ndx > 0) buildRatingTable();
         }
 
         function buildRatingTable() {
             if (!DATA.market || !DATA.market.ndx) return;
             const spot = DATA.market.ndx;
             if (!DATA.sr.length) return;
-
             let above = [], below = [];
-            DATA.sr.forEach(r => {
-                const d = r.strike - spot;
-                if (d > 0) above.push({...r, dist: d});
-                else if (d < 0) below.push({...r, dist: Math.abs(d)});
-            });
-            above.sort((a,b) => a.dist - b.dist);
-            below.sort((a,b) => a.dist - b.dist);
+            DATA.sr.forEach(r => { const d = r.strike - spot; if (d > 0) above.push({...r, dist: d}); else if (d < 0) below.push({...r, dist: Math.abs(d)}); });
+            above.sort((a,b) => a.dist - b.dist); below.sort((a,b) => a.dist - b.dist);
             const topP = above.slice(0, 3), topS = below.slice(0, 3);
-            const sc = DATA.maxCall ? DATA.maxCall.strike : null;
-            const sp = DATA.maxPut ? DATA.maxPut.strike : null;
-
+            const sc = DATA.maxCall ? DATA.maxCall.strike : null, sp = DATA.maxPut ? DATA.maxPut.strike : null;
             let h = '<div style="margin:16px 0;background:var(--bg2);border-radius:4px;padding:12px 16px;border-left:3px solid var(--primary-light);"><div style="font-weight:700;color:var(--primary-light);margin-bottom:8px;">📋 壓力支撐評級表</div><table class="rating-table">';
-            topP.forEach(p => {
-                const isStrong = p.strike === sc;
-                const oiD = p.callOI >= 1000 ? (p.callOI/1000).toFixed(1)+'K' : p.callOI;
-                h += `<tr><td class="${isStrong?'strong-pressure':'pressure'}">${isStrong?'🔴 強壓':'🟠 壓力'} ${p.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 +${((p.dist/spot)*100).toFixed(1)}%</td></tr>`;
-            });
+            topP.forEach(p => { const isStrong = p.strike === sc; const oiD = p.callOI >= 1000 ? (p.callOI/1000).toFixed(1)+'K' : p.callOI; h += `<tr><td class="${isStrong?'strong-pressure':'pressure'}">${isStrong?'🔴 強壓':'🟠 壓力'} ${p.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 +${((p.dist/spot)*100).toFixed(1)}%</td></tr>`; });
             h += `<tr class="spot-row"><td>─── 現貨約 ${spot.toLocaleString()} ───</td><td></td></tr>`;
-            topS.forEach(s => {
-                const isStrong = s.strike === sp;
-                const oiD = s.putOI >= 1000 ? (s.putOI/1000).toFixed(1)+'K' : s.putOI;
-                h += `<tr><td class="${isStrong?'strong-support':'support'}">${isStrong?'🟢 強撐':'🟩 支撐'} ${s.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 -${((s.dist/spot)*100).toFixed(1)}%</td></tr>`;
-            });
+            topS.forEach(s => { const isStrong = s.strike === sp; const oiD = s.putOI >= 1000 ? (s.putOI/1000).toFixed(1)+'K' : s.putOI; h += `<tr><td class="${isStrong?'strong-support':'support'}">${isStrong?'🟢 強撐':'🟩 支撐'} ${s.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 -${((s.dist/spot)*100).toFixed(1)}%</td></tr>`; });
             h += '</table></div>';
             document.getElementById('srRating').innerHTML = h;
         }
@@ -272,8 +242,7 @@
             div.innerHTML = sorted.map(r => {
                 const cP = Math.max(3, (r.callOI/maxT)*100), pP = Math.max(3, (r.putOI/maxT)*100);
                 const isZG = DATA.zg === r.strike, isMC = DATA.maxCall && DATA.maxCall.strike === r.strike, isMP = DATA.maxPut && DATA.maxPut.strike === r.strike;
-                const cD = r.callOI >= 1000 ? (r.callOI/1000).toFixed(1)+'K' : r.callOI;
-                const pD = r.putOI >= 1000 ? (r.putOI/1000).toFixed(1)+'K' : r.putOI;
+                const cD = r.callOI >= 1000 ? (r.callOI/1000).toFixed(1)+'K' : r.callOI, pD = r.putOI >= 1000 ? (r.putOI/1000).toFixed(1)+'K' : r.putOI;
                 let tags = '';
                 if (isZG) tags += '<span class="energy-tag zg">ZG</span>';
                 if (isMC) tags += '<span class="energy-tag" style="background:rgba(224,82,82,0.2);color:#ff6b6b;">最強壓</span>';
