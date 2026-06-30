@@ -8,76 +8,157 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #4A9EE0; --primary-light: #6BB5F0; --primary-dim: #2A6EA0;
-            --red: #E05252; --red-glow: #ff6b6b; --green: #3DBF8C; --green-glow: #5cdba3;
-            --bg: #111318; --bg2: #181C23; --bg3: #1E232D; --bg4: #242A36;
-            --border: rgba(74, 158, 224, 0.15); --border2: rgba(74, 158, 224, 0.3);
-            --text: #F0ECE6; --text2: #ADA89A; --text3: #6B655C;
-            --purple: #b085f5; --amber: #d2991d; --orange: #f0883e; --yellow: #e3b341;
-            --card-radius: 6px; --bar-height: 22px;
+            --gold: #C9A84C;
+            --gold-light: #E8C97A;
+            --gold-dim: #8A7238;
+            --red: #E05252;
+            --red-glow: #ff6b6b;
+            --green: #3DBF8C;
+            --green-glow: #5cdba3;
+            --blue: #4A9EE0;
+            --bg: #111318;
+            --bg2: #181C23;
+            --bg3: #1E232D;
+            --bg4: #242A36;
+            --border: rgba(201, 168, 76, 0.15);
+            --border2: rgba(201, 168, 76, 0.3);
+            --text: #F0ECE6;
+            --text2: #ADA89A; 
+            --text3: #6B655C;
+            --purple: #b085f5;
+            --amber: #d2991d;
+            --orange: #f0883e;
+            --yellow: #e3b341;
+            --card-radius: 6px;
+            --bar-height: 22px;
         }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); font-size: 18px; padding-bottom: 20px; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 18px;
+            padding-bottom: 20px;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         .header { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg2); flex-wrap: wrap; gap: 10px; }
         .header-left { display: flex; align-items: center; gap: 12px; }
-        .header h1 { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 600; color: var(--primary-light); letter-spacing: 2px; white-space: nowrap; }
+        .header h1 { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 600; color: var(--gold); letter-spacing: 2px; white-space: nowrap; }
         .header-sub { font-size: 12px; color: var(--text2); white-space: nowrap; }
-        .refresh-btn { background: transparent; border: 1px solid var(--border2); border-radius: 4px; padding: 6px 14px; cursor: pointer; color: var(--primary-light); font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: nowrap; transition: background 0.15s; }
-        .refresh-btn:hover { background: rgba(74, 158, 224, 0.08); }
+        .refresh-btn { background: transparent; border: 1px solid var(--border2); border-radius: 4px; padding: 6px 14px; cursor: pointer; color: var(--gold); font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: nowrap; transition: background 0.15s; }
+        .refresh-btn:hover { background: rgba(201, 168, 76, 0.08); }
+
         .main-tabs { display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto; border-bottom: 1px solid var(--border); background: var(--bg); -webkit-overflow-scrolling: touch; }
         .main-tabs .tab { flex-shrink: 0; padding: 8px 18px; font-family: 'JetBrains Mono', monospace; font-size: 15px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: transparent; color: var(--text2); white-space: nowrap; transition: all 0.15s; }
-        .main-tabs .tab.active { background: rgba(74, 158, 224, 0.12); color: var(--primary-light); border-color: var(--border2); }
+        .main-tabs .tab.active { background: rgba(201, 168, 76, 0.12); color: var(--gold-light); border-color: var(--border2); }
+
         .section { display: none; padding: 16px; }
         .section.active { display: block; }
+
         .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 18px; }
         .card.full { grid-column: 1 / -1; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .card h3 { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--text3); letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase; }
         .card .big { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700; }
         .card .sub { font-size: 14px; color: var(--text2); margin-top: 6px; }
-        .red { color: var(--red); } .green { color: var(--green); } .purple { color: var(--purple); }
+        .red { color: var(--red); }
+        .green { color: var(--green); }
+        .blue { color: var(--blue); }
+        .purple { color: var(--purple); }
+        .amber { color: var(--amber); }
+        .gold { color: var(--gold-light); }
+
         .section-title { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 600; color: var(--text2); margin: 12px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 1px; }
+
         .notice { font-size: 14px; color: var(--text2); padding: 10px 16px; background: var(--bg2); border-radius: 4px; margin-bottom: 16px; line-height: 1.6; border-left: 2px solid var(--border2); }
-        .rating-table { width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 16px; background: var(--bg2); border-radius: 4px; overflow: hidden; }
-        .rating-table td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); }
-        .rating-table .strong { font-weight: 700; }
-        .rating-table .pressure { color: #ff8c8c; } .rating-table .support { color: #8ce0a0; }
-        .rating-table .spot-row td { background: rgba(74,158,224,0.08); font-weight: 700; color: var(--primary-light); }
+        .notice .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+        .dot-yellow { background: var(--yellow); }
+        .dot-red { background: var(--red); }
+        .dot-white { background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(255, 255, 255, 0.3); }
+
         .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         table { width: 100%; font-size: 13px; border-collapse: collapse; min-width: 660px; background: var(--bg2); border-radius: 4px; overflow: hidden; }
         th { padding: 8px 6px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap; background: var(--bg3); font-weight: 400; }
-        td { padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.04); text-align: center; white-space: nowrap; font-size: 13px; color: var(--text); }
-        .pos { color: var(--red); } .neg { color: var(--green); }
+        td { padding: 8px 6px; border-bottom: 1px solid rgba(201, 168, 76, 0.06); text-align: center; white-space: nowrap; font-size: 13px; color: var(--text); }
+
+        .pos { color: var(--red); }
+        .neg { color: var(--green); }
+
         .chart-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--text2); margin-bottom: 8px; }
-        .chart-legend span { display: flex; align-items: center; gap: 6px; } .ld { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
+        .chart-legend span { display: flex; align-items: center; gap: 6px; }
+        .ld { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
+
+        .sub-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+        .sub-tab { padding: 6px 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: transparent; color: var(--text2); transition: all 0.15s; }
+        .sub-tab.active { background: var(--bg3); color: var(--text); border-color: var(--border2); }
+        .sub-section { display: none; }
+        .sub-section.active { display: block; }
+
         .energy-container { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
-        .energy-row { display: flex; align-items: stretch; height: 38px; background: rgba(255, 255, 255, 0.02); border-radius: var(--card-radius); border: 1px solid rgba(255, 255, 255, 0.04); transition: all 0.25s ease; position: relative; overflow: hidden; cursor: default; }
-        .energy-row:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(74, 158, 224, 0.18); transform: scale(1.002); }
-        .energy-row.is-zg { background: rgba(163, 113, 247, 0.10); border-color: rgba(163, 113, 247, 0.20); }
+        .energy-row { display: flex; align-items: stretch; height: 38px; background: rgba(255, 255, 255, 0.02); border-radius: var(--card-radius); border: 1px solid rgba(201, 168, 76, 0.06); transition: all 0.25s ease; position: relative; overflow: hidden; cursor: default; }
+        .energy-row:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(201, 168, 76, 0.18); transform: scale(1.002); }
+        .energy-row.is-zg { background: rgba(163, 113, 247, 0.10); border-color: rgba(163, 113, 247, 0.20); box-shadow: inset 0 0 30px rgba(163, 113, 247, 0.04); }
+        .energy-row.is-zg:hover { background: rgba(163, 113, 247, 0.15); }
         .energy-row.is-maxc { background: rgba(224, 82, 82, 0.07); border-color: rgba(224, 82, 82, 0.18); }
+        .energy-row.is-maxc:hover { background: rgba(224, 82, 82, 0.12); }
         .energy-row.is-maxp { background: rgba(61, 191, 140, 0.07); border-color: rgba(61, 191, 140, 0.18); }
-        .energy-left { flex: 1; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; min-width: 0; }
-        .energy-left .bar-track { width: 100%; height: var(--bar-height); border-radius: 4px 0 0 4px; background: rgba(224, 82, 82, 0.08); overflow: hidden; direction: rtl; }
-        .energy-left .bar-fill { height: 100%; border-radius: 4px 0 0 4px; background: linear-gradient(90deg, #ff6b6b, #e05252, #b33a3a); box-shadow: 0 0 18px rgba(224, 82, 82, 0.30); transition: width 0.6s; display: flex; align-items: center; justify-content: center; min-width: 32px; direction: ltr; }
+        .energy-row.is-maxp:hover { background: rgba(61, 191, 140, 0.12); }
+
+        .energy-left { flex: 1; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; min-width: 0; position: relative; }
+        .energy-left .bar-track { width: 100%; height: var(--bar-height); border-radius: 4px 0 0 4px; background: rgba(224, 82, 82, 0.08); position: relative; overflow: hidden; direction: rtl; }
+        .energy-left .bar-fill { height: 100%; border-radius: 4px 0 0 4px; background: linear-gradient(90deg, #ff6b6b, #e05252, #b33a3a); box-shadow: 0 0 18px rgba(224, 82, 82, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.15); transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1); position: relative; display: flex; align-items: center; justify-content: center; min-width: 32px; padding: 0 4px; direction: ltr; }
+        .energy-left .bar-fill::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 50%; background: linear-gradient(180deg, rgba(255, 255, 255, 0.20) 0%, transparent 100%); border-radius: 4px 0 0 0; pointer-events: none; }
+
         .energy-right { flex: 1; display: flex; align-items: center; padding-left: 6px; min-width: 0; }
-        .energy-right .bar-track { width: 100%; height: var(--bar-height); border-radius: 0 4px 4px 0; background: rgba(61, 191, 140, 0.08); overflow: hidden; }
-        .energy-right .bar-fill { height: 100%; border-radius: 0 4px 4px 0; background: linear-gradient(270deg, #5cdba3, #3DBF8C, #2a8f6a); box-shadow: 0 0 18px rgba(61, 191, 140, 0.30); transition: width 0.6s; display: flex; align-items: center; justify-content: center; min-width: 32px; }
-        .bar-value { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; color: #fff; white-space: nowrap; z-index: 2; }
-        .energy-center { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 10px; min-width: 80px; z-index: 3; }
-        .energy-price { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--primary-light); }
+        .energy-right .bar-track { width: 100%; height: var(--bar-height); border-radius: 0 4px 4px 0; background: rgba(61, 191, 140, 0.08); position: relative; overflow: hidden; }
+        .energy-right .bar-fill { height: 100%; border-radius: 0 4px 4px 0; background: linear-gradient(270deg, #5cdba3, #3DBF8C, #2a8f6a); box-shadow: 0 0 18px rgba(61, 191, 140, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.15); transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1); position: relative; display: flex; align-items: center; justify-content: center; min-width: 32px; padding: 0 4px; }
+        .energy-right .bar-fill::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 50%; background: linear-gradient(180deg, rgba(255, 255, 255, 0.20) 0%, transparent 100%); border-radius: 0 4px 0 0; pointer-events: none; }
+
+        .bar-value { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.50); letter-spacing: 0.2px; white-space: nowrap; z-index: 2; opacity: 0.95; line-height: 1; padding: 0 2px; }
+        .energy-center { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 10px; min-width: 80px; position: relative; z-index: 3; }
+        .energy-price { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--gold-light); text-shadow: 0 0 20px rgba(201, 168, 76, 0.25), 0 0 60px rgba(201, 168, 76, 0.08); letter-spacing: 0.5px; line-height: 1.2; transition: all 0.2s; }
+        .energy-row:hover .energy-price { text-shadow: 0 0 30px rgba(201, 168, 76, 0.40), 0 0 80px rgba(201, 168, 76, 0.12); }
         .energy-tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; margin-top: 1px; }
-        .energy-tag { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.06); color: var(--text3); }
-        .energy-tag.zg { background: rgba(163, 113, 247, 0.20); color: var(--purple); }
-        .energy-tag.maxc { background: rgba(224, 82, 82, 0.20); color: var(--red-glow); }
-        .energy-tag.maxp { background: rgba(61, 191, 140, 0.20); color: var(--green-glow); }
-        .energy-empty { text-align: center; padding: 30px 0; color: var(--text3); font-size: 15px; }
+        .energy-tag { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 3px; letter-spacing: 0.3px; text-transform: uppercase; line-height: 1.4; background: rgba(255, 255, 255, 0.06); color: var(--text3); border: 1px solid rgba(255, 255, 255, 0.04); }
+        .energy-tag.zg { background: rgba(163, 113, 247, 0.20); color: var(--purple); border-color: rgba(163, 113, 247, 0.20); box-shadow: 0 0 12px rgba(163, 113, 247, 0.10); }
+        .energy-tag.big { background: rgba(210, 153, 29, 0.18); color: var(--amber); border-color: rgba(210, 153, 29, 0.18); }
+        .energy-tag.maxc { background: rgba(224, 82, 82, 0.20); color: var(--red-glow); border-color: rgba(224, 82, 82, 0.20); box-shadow: 0 0 12px rgba(224, 82, 82, 0.10); }
+        .energy-tag.maxp { background: rgba(61, 191, 140, 0.20); color: var(--green-glow); border-color: rgba(61, 191, 140, 0.20); box-shadow: 0 0 12px rgba(61, 191, 140, 0.10); }
+        .energy-empty { text-align: center; padding: 30px 0; color: var(--text3); font-size: 15px; letter-spacing: 1px; }
+
         .update-time { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--text3); padding: 16px; border-top: 1px solid var(--border); margin-top: 20px; }
         .copy-section { margin-top: 16px; }
         .copy-row { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
         .copy-label { font-size: 14px; color: var(--text2); min-width: 60px; }
-        .copy-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 10px 14px; color: var(--text); font-size: 13px; font-family: 'JetBrains Mono', monospace; }
-        .copy-btn { background: transparent; border: 1px solid var(--border2); border-radius: 4px; padding: 10px 16px; color: var(--primary-light); font-family: 'JetBrains Mono', monospace; font-size: 14px; cursor: pointer; transition: background 0.15s; }
-        .copy-btn:hover { background: rgba(74, 158, 224, 0.1); }
+        .copy-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 10px 14px; color: var(--text); font-size: 13px; font-family: 'JetBrains Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .copy-btn { background: transparent; border: 1px solid var(--border2); border-radius: 4px; padding: 10px 16px; color: var(--gold); font-family: 'JetBrains Mono', monospace; font-size: 14px; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+        .copy-btn:hover { background: rgba(201, 168, 76, 0.1); }
+
+        @media (max-width: 500px) {
+            .energy-row { height: 34px; }
+            .energy-center { min-width: 60px; padding: 0 6px; }
+            .energy-price { font-size: 14px; }
+            .bar-value { font-size: 9px; }
+            .energy-left .bar-fill, .energy-right .bar-fill { min-width: 26px; }
+            :root { --bar-height: 18px; }
+            .refresh-btn { font-size: 11px; padding: 4px 10px; }
+        }
+        @media (max-width: 380px) {
+            .energy-row { height: 30px; }
+            .energy-price { font-size: 13px; }
+            .energy-center { min-width: 50px; padding: 0 4px; }
+            .bar-value { font-size: 8px; }
+            .energy-left .bar-fill, .energy-right .bar-fill { min-width: 22px; }
+            :root { --bar-height: 16px; }
+            .refresh-btn { font-size: 10px; padding: 3px 8px; }
+        }
+        @media (max-width: 400px) {
+            .summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .card { padding: 14px; }
+            .card .big { font-size: 26px; }
+        }
     </style>
 </head>
 <body>
@@ -88,44 +169,50 @@
         </div>
         <button class="refresh-btn" onclick="loadAll()">⟳ 更新</button>
     </div>
-    <div class="main-tabs" id="tabBar">
-        <button class="tab active" data-tab="home">首頁</button>
-        <button class="tab" data-tab="chips">籌碼增減</button>
-        <button class="tab" data-tab="cumulative">累計趨勢</button>
-        <button class="tab" data-tab="sr">選擇權壓力表</button>
+
+    <div class="main-tabs">
+        <button class="tab active" onclick="switchTab('home')">首頁</button>
+        <button class="tab" onclick="switchTab('chips')">籌碼增減</button>
+        <button class="tab" onclick="switchTab('cumulative')">累計趨勢</button>
+        <button class="tab" onclick="switchTab('sr')">選擇權壓力表</button>
     </div>
+
     <div id="home" class="section active">
-        <div class="section-title">📋 NQ 關鍵價位</div>
+        <div class="section-title" style="color: var(--text2);">📋 NQ 關鍵價位</div>
         <div class="summary-grid">
             <div class="card"><h3>🔴 最大壓力</h3><div class="big red" id="mResist">-</div><div class="sub" id="mResistOI"></div></div>
             <div class="card"><h3>🟢 最大支撐</h3><div class="big green" id="mSupport">-</div><div class="sub" id="mSupportOI"></div></div>
             <div class="card"><h3>⚡ Zero Gamma</h3><div class="big purple" id="mZG">-</div><div class="sub">多空分界</div></div>
             <div class="card"><h3>📈 NQ 參考價</h3><div class="big" id="mRef">-</div><div class="sub" id="mPos"></div></div>
         </div>
-        <div class="section-title" style="margin-top:24px;">📊 美股市場總覽</div>
+
+        <div class="section-title" style="margin-top: 24px; color: var(--text2);">📊 美股市場總覽</div>
         <div class="summary-grid" id="marketCards"></div>
+
         <div class="card full copy-section" style="margin-top:24px">
             <h3>GAMMA指標數據</h3>
             <div class="copy-row"><span class="copy-label">NQ 合併</span><input class="copy-input" id="tvInput" readonly placeholder="載入中..."><button class="copy-btn" onclick="copyTV()">📋 複製</button></div>
         </div>
         <div class="update-time" id="updateTime">最後更新：載入中...</div>
     </div>
+
     <div id="chips" class="section">
-        <div class="section-title">📊 每日 Call / Put OI 變化</div>
+        <div class="section-title" style="color: var(--text2);">📊 每日 Call / Put OI 變化</div>
         <div class="chart-legend"><span><span class="ld" style="background:#E05252"></span>Call OI 變化</span><span><span class="ld" style="background:#3DBF8C"></span>Put OI 變化</span></div>
         <div style="height:240px"><canvas id="cChips"></canvas></div>
         <div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>日期</th><th>總CallOI</th><th>總PutOI</th><th>Call變化</th><th>Put變化</th><th>C/P比</th></tr></thead><tbody id="chipsTbody"></tbody></table></div>
     </div>
+
     <div id="cumulative" class="section">
-        <div class="section-title">📈 累計趨勢（每日累加）</div>
-        <div style="margin-bottom:10px; display:flex; align-items:center; gap:10px;"><span>📅 範圍：</span><select id="cumRange" onchange="buildCumulativeChart()" style="background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:6px 12px; color:var(--text);"><option value="30">30天</option><option value="60" selected>60天</option><option value="90">90天</option></select></div>
+        <div class="section-title" style="color: var(--text2);">📈 累計趨勢（每日累加）</div>
+        <div style="margin-bottom:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;"><span style="font-size:14px; color:var(--text2);">📅 範圍：</span><select id="cumRange" onchange="buildCumulativeChart()" style="background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:6px 12px; color:var(--text); font-size:14px;"><option value="30">30天</option><option value="60" selected>60天</option><option value="90">90天</option></select></div>
         <div class="chart-legend"><span><span class="ld" style="background:#E05252"></span>累積 Call OI</span><span><span class="ld" style="background:#3DBF8C"></span>累積 Put OI</span></div>
         <div style="height:240px"><canvas id="cCum"></canvas></div>
         <div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>日期</th><th>總CallOI</th><th>總PutOI</th><th>Call變化</th><th>Put變化</th><th>累積Call</th><th>累積Put</th></tr></thead><tbody id="cumTbody"></tbody></table></div>
     </div>
+
     <div id="sr" class="section">
-        <div class="notice">📅 NQ 選擇權｜<span style="color:var(--red-glow);">◀ 壓力(Call)</span> ｜ <span style="color:var(--green-glow);">支撐(Put) ▶</span> ｜ 條寬 = 未平倉量 ｜ <span class="energy-tag zg">ZG</span> 多空分界 ｜ <span class="energy-tag maxc">最強壓</span> ｜ <span class="energy-tag maxp">最強撐</span></div>
-        <div id="srRating"></div>
+        <div class="notice">📅 NQ 選擇權｜<span style="color:var(--red-glow);font-weight:600;">◀ 壓力(Call)</span> ｜ <span style="color:var(--green-glow);font-weight:600;">支撐(Put) ▶</span> ｜ 條寬 = 未平倉量 ｜ <span class="energy-tag zg" style="font-size:11px;">ZG</span> 多空分界 ｜ <span class="energy-tag maxc" style="font-size:11px;">最強壓</span> ｜ <span class="energy-tag maxp" style="font-size:11px;">最強撐</span></div>
         <div class="energy-container" id="srList"></div>
         <div class="update-time" id="srTime"></div>
     </div>
@@ -134,207 +221,152 @@
         const SHEET_ID = "1oPHb8dhDBpoN623zU0zEpC7cuiFLCrzWmvlcZsfSYFM";
         let DATA = { chips: [], cumulative: [], sr: [], market: null, zg: null, maxCall: null, maxPut: null };
         const charts = {};
-        const TABS = ['home', 'chips', 'cumulative', 'sr'];
 
         function safeNum(s) { const n = parseFloat(String(s || 0).replace(/,/g, '')); return isNaN(n) ? 0 : n; }
         function fmt(v) { return (v > 0 ? '+' : '') + Math.round(v).toLocaleString(); }
         function cls(v) { return v > 0 ? 'pos' : v < 0 ? 'neg' : ''; }
 
-        // 通用CSV获取（返回原始文本）
-        async function fetchRawCSV(sheetName, range = "A1:Z500") {
+        async function fetchSheetCSV(name, range = "A1:Z500") {
             try {
-                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}&range=${range}&_=${Date.now()}`;
+                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}&range=${range}&_=${Date.now()}`;
                 const r = await fetch(url);
-                if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 return await r.text();
             } catch (e) { return ''; }
         }
 
-        // 将CSV文本按行分割成数组（每行又是逗号分割的数组），跳过空行
-        function csvToRows(csvText) {
-            return csvText.trim().split('\n').filter(line => line.trim() !== '').map(line => line.split(',').map(c => c.replace(/^"|"$/g, '').trim()));
+        function parseCSV(csv) {
+            const lines = csv.trim().split('\n');
+            if (lines.length < 2) return [];
+            const headers = lines[0].split(',');
+            return lines.slice(1).map(line => {
+                const cols = line.split(',');
+                const obj = {};
+                headers.forEach((h, i) => { obj[h.trim()] = cols[i] ? cols[i].trim() : ''; });
+                return obj;
+            });
         }
 
-        // ---------- 加载市场数据（按列索引） ----------
         async function loadMarket() {
-            const csv = await fetchRawCSV("NQ 市場數據");
-            const rows = csvToRows(csv);
-            if (rows.length < 2) {
-                document.getElementById('marketCards').innerHTML = '<div class="card full"><div class="energy-empty">⏳ 美股市場數據尚未就緒，等待爬蟲寫入</div></div>';
-                return;
-            }
-            // 最后一行数据（跳过表头）
-            const last = rows[rows.length - 1];
-            // 列索引: 0日期 1NDX 2NDX涨跌% 3SPX 4SPX涨跌% 5SOX 6SOX涨跌% 7VIX 8VXN 9AAPL 10AAPL涨跌% 11MSFT 12MSFT涨跌% 13NVDA 14NVDA涨跌% 15NQ期货 16NQ期货涨跌% 17TSM 18TSM涨跌%
+            const csv = await fetchSheetCSV("NQ 市場數據");
+            const rows = parseCSV(csv);
+            if (rows.length === 0) return;
+            DATA.market = rows[rows.length - 1];
+
+            // 构建市场卡片
             const items = [
-                { label: 'NDX', val: safeNum(last[1]), chg: safeNum(last[2]) },
-                { label: 'SPX', val: safeNum(last[3]), chg: safeNum(last[4]) },
-                { label: 'SOX', val: safeNum(last[5]), chg: safeNum(last[6]) },
-                { label: 'VIX', val: safeNum(last[7]), chg: null },
-                { label: 'VXN', val: safeNum(last[8]), chg: null },
-                { label: 'AAPL', val: safeNum(last[9]), chg: safeNum(last[10]) },
-                { label: 'MSFT', val: safeNum(last[11]), chg: safeNum(last[12]) },
-                { label: 'NVDA', val: safeNum(last[13]), chg: safeNum(last[14]) },
-                { label: 'NQ期貨', val: safeNum(last[15]), chg: safeNum(last[16]) },
-                { label: 'TSM', val: safeNum(last[17]), chg: safeNum(last[18]) }
+                { label: 'NDX', val: DATA.market['NDX'], chg: DATA.market['NDX漲跌%'] },
+                { label: 'SPX', val: DATA.market['SPX'], chg: DATA.market['SPX漲跌%'] },
+                { label: 'SOX', val: DATA.market['SOX'], chg: DATA.market['SOX漲跌%'] },
+                { label: 'VIX', val: DATA.market['VIX'], chg: null },
+                { label: 'VXN', val: DATA.market['VXN'], chg: null },
+                { label: 'AAPL', val: DATA.market['AAPL'], chg: DATA.market['AAPL漲跌%'] },
+                { label: 'MSFT', val: DATA.market['MSFT'], chg: DATA.market['MSFT漲跌%'] },
+                { label: 'NVDA', val: DATA.market['NVDA'], chg: DATA.market['NVDA漲跌%'] },
+                { label: 'NQ期貨', val: DATA.market['NQ期貨'], chg: DATA.market['NQ期貨漲跌%'] },
+                { label: 'TSM', val: DATA.market['TSM'], chg: DATA.market['TSM漲跌%'] }
             ];
+
             let html = '';
             items.forEach(item => {
-                const val = item.val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const val = safeNum(item.val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 let chgHtml = '';
-                if (item.chg !== null && !isNaN(item.chg)) {
-                    const chgClass = item.chg >= 0 ? 'pos' : 'neg';
-                    chgHtml = `<div class="sub ${chgClass}">${item.chg >= 0 ? '+' : ''}${item.chg.toFixed(2)}%</div>`;
+                if (item.chg !== null) {
+                    const chgVal = parseFloat(item.chg);
+                    const chgClass = chgVal >= 0 ? 'pos' : 'neg';
+                    const chgSign = chgVal >= 0 ? '+' : '';
+                    chgHtml = `<div class="sub ${chgClass}">${chgSign}${chgVal.toFixed(2)}%</div>`;
                 }
                 html += `<div class="card"><h3>${item.label}</h3><div class="big">${val}</div>${chgHtml}</div>`;
             });
             document.getElementById('marketCards').innerHTML = html;
-            document.getElementById('mRef').textContent = items[0].val.toLocaleString();
-            DATA.market = { ndx: items[0].val }; // 保存NDX用于偏多偏空判断
+            document.getElementById('mRef').textContent = safeNum(DATA.market['NDX']).toLocaleString();
         }
 
-        // ---------- 加载筹码分析（按列索引） ----------
         async function loadChips() {
-            const csv = await fetchRawCSV("NQ 籌碼分析");
-            const rows = csvToRows(csv);
-            if (rows.length < 2) return;
-            DATA.chips = rows.slice(1).map(r => ({
-                date: r[0],
-                totalCall: safeNum(r[1]),
-                totalPut: safeNum(r[2]),
-                cpRatio: parseFloat(r[3]) || 0,
-                callChange: safeNum(r[4]),
-                putChange: safeNum(r[5]),
-                maxCallPrice: safeNum(r[6]),
-                maxCallOI: safeNum(r[7]),
-                maxPutPrice: safeNum(r[8]),
-                maxPutOI: safeNum(r[9])
-            }));
+            const csv = await fetchSheetCSV("NQ 籌碼分析");
+            DATA.chips = parseCSV(csv);
+            // 最新一行更新关键价位
             if (DATA.chips.length > 0) {
                 const last = DATA.chips[DATA.chips.length - 1];
-                document.getElementById('mResist').textContent = last.maxCallPrice.toLocaleString();
-                document.getElementById('mResistOI').textContent = `Call ${Math.round(last.maxCallOI/1000)}K 口`;
-                document.getElementById('mSupport').textContent = last.maxPutPrice.toLocaleString();
-                document.getElementById('mSupportOI').textContent = `Put ${Math.round(last.maxPutOI/1000)}K 口`;
-                DATA.maxCall = { strike: last.maxCallPrice, oi: last.maxCallOI };
-                DATA.maxPut = { strike: last.maxPutPrice, oi: last.maxPutOI };
+                document.getElementById('mResist').textContent = Number(last['最大壓力價']).toLocaleString();
+                document.getElementById('mResistOI').textContent = `Call ${Math.round(safeNum(last['最大壓力OI'])/1000)}K 口`;
+                document.getElementById('mSupport').textContent = Number(last['最大支撐價']).toLocaleString();
+                document.getElementById('mSupportOI').textContent = `Put ${Math.round(safeNum(last['最大支撐OI'])/1000)}K 口`;
+                DATA.maxCall = { strike: safeNum(last['最大壓力價']), oi: safeNum(last['最大壓力OI']) };
+                DATA.maxPut = { strike: safeNum(last['最大支撐價']), oi: safeNum(last['最大支撐OI']) };
             }
             // 表格
             const tb = document.getElementById('chipsTbody');
             tb.innerHTML = '';
             [...DATA.chips].reverse().slice(0, 30).forEach(r => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td>${r.cpRatio.toFixed(2)}</td>`;
+                tr.innerHTML = `<td>${r['日期']}</td><td>${safeNum(r['總CallOI']).toLocaleString()}</td><td>${safeNum(r['總PutOI']).toLocaleString()}</td><td class="${cls(safeNum(r['Call變化']))}">${fmt(safeNum(r['Call變化']))}</td><td class="${cls(safeNum(r['Put變化']))}">${fmt(safeNum(r['Put變化']))}</td><td>${parseFloat(r['C/P比']).toFixed(2)}</td>`;
                 tb.appendChild(tr);
             });
             buildChipsChart();
         }
 
-        // ---------- 加载累计趋势（按列索引） ----------
         async function loadCumulative() {
-            const csv = await fetchRawCSV("NQ 累計趨勢");
-            const rows = csvToRows(csv);
-            if (rows.length < 2) return;
-            DATA.cumulative = rows.slice(1).map(r => ({
-                date: r[0],
-                totalCall: safeNum(r[1]),
-                totalPut: safeNum(r[2]),
-                callChange: safeNum(r[3]),
-                putChange: safeNum(r[4]),
-                cumCall: safeNum(r[5]),
-                cumPut: safeNum(r[6])
-            }));
+            const csv = await fetchSheetCSV("NQ 累計趨勢");
+            DATA.cumulative = parseCSV(csv);
             const tb = document.getElementById('cumTbody');
             tb.innerHTML = '';
             [...DATA.cumulative].reverse().slice(0, 60).forEach(r => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td class="${cls(r.cumCall)}">${fmt(r.cumCall)}</td><td class="${cls(r.cumPut)}">${fmt(r.cumPut)}</td>`;
+                tr.innerHTML = `<td>${r['日期']}</td><td>${safeNum(r['總CallOI']).toLocaleString()}</td><td>${safeNum(r['總PutOI']).toLocaleString()}</td><td class="${cls(safeNum(r['Call變化']))}">${fmt(safeNum(r['Call變化']))}</td><td class="${cls(safeNum(r['Put變化']))}">${fmt(safeNum(r['Put變化']))}</td><td class="${cls(safeNum(r['累積Call']))}">${fmt(safeNum(r['累積Call']))}</td><td class="${cls(safeNum(r['累積Put']))}">${fmt(safeNum(r['累積Put']))}</td>`;
                 tb.appendChild(tr);
             });
             buildCumulativeChart();
         }
 
-        // ---------- 加载选择权合并数据（含ZG） ----------
         async function loadSR() {
-            const csv = await fetchRawCSV("NQ 合併");
-            const rows = csvToRows(csv);
-            // 跳过前4行（标题、TV字串、空行、表头）
-            const dataRows = rows.slice(4);
-            DATA.sr = dataRows.map(r => ({
-                strike: safeNum(r[1]),
-                callOI: safeNum(r[2]),
-                putOI: safeNum(r[3]),
-                gex: safeNum(r[4]),
-                zgFlag: r[7] && r[7].includes('分界')
-            })).filter(r => r.strike > 0);
-            const zgRow = DATA.sr.find(r => r.zgFlag);
-            DATA.zg = zgRow ? zgRow.strike : null;
+            const csv = await fetchSheetCSV("NQ 合併");
+            const rows = parseCSV(csv);
+            DATA.sr = rows.filter(r => String(r['履約價'] || '').match(/^\d{4,6}$/));
+            // 找 ZG
+            const zgRow = DATA.sr.find(r => String(r['Zero Gamma'] || '').includes('分界'));
+            DATA.zg = zgRow ? safeNum(zgRow['履約價']) : null;
             if (DATA.zg) {
                 document.getElementById('mZG').textContent = DATA.zg.toLocaleString();
-                const refPrice = DATA.market ? DATA.market.ndx : 0;
+                // 偏多/偏空
+                const refPrice = safeNum(DATA.market ? DATA.market['NDX'] : 0);
                 document.getElementById('mPos').textContent = refPrice > DATA.zg ? '🟢 偏多區' : '🔴 偏空區';
             }
             buildSRBars();
-            buildRatingTable();
-        }
-
-        function buildRatingTable() {
-            const spot = DATA.market ? DATA.market.ndx : 0;
-            if (!spot || !DATA.sr.length) { document.getElementById('srRating').innerHTML = ''; return; }
-            let above = [], below = [];
-            DATA.sr.forEach(r => {
-                const dist = r.strike - spot;
-                if (dist > 0) above.push({ strike: r.strike, callOI: r.callOI, putOI: r.putOI, dist });
-                else if (dist < 0) below.push({ strike: r.strike, callOI: r.callOI, putOI: r.putOI, dist: Math.abs(dist) });
-            });
-            above.sort((a, b) => a.dist - b.dist);
-            below.sort((a, b) => a.dist - b.dist);
-            const topP = above.slice(0, 3), topS = below.slice(0, 3);
-            const sc = DATA.maxCall ? DATA.maxCall.strike : null;
-            const sp = DATA.maxPut ? DATA.maxPut.strike : null;
-            let html = '<div style="margin: 16px 0; background: var(--bg2); border-radius: 4px; padding: 12px 16px; border-left: 3px solid var(--primary-light);"><div style="font-weight:700; color:var(--primary-light); margin-bottom:8px;">📋 壓力支撐評級表</div><table class="rating-table">';
-            topP.forEach(p => {
-                const isStrong = p.strike === sc;
-                const label = isStrong ? '🔵 強壓' : '🔹 壓力';
-                const pct = ((p.dist / spot) * 100).toFixed(1);
-                const oiD = p.callOI >= 1000 ? (p.callOI / 1000).toFixed(1) + 'K' : p.callOI;
-                html += `<tr><td class="pressure ${isStrong ? 'strong' : ''}">${label} ${p.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right; color:var(--text2);">距現貨 +${pct}%</td></tr>`;
-            });
-            html += `<tr class="spot-row"><td>─── 現貨約 ${spot.toLocaleString()} ───</td><td></td></tr>`;
-            topS.forEach(s => {
-                const isStrong = s.strike === sp;
-                const label = isStrong ? '🟢 強撐' : '🟩 支撐';
-                const pct = ((s.dist / spot) * 100).toFixed(1);
-                const oiD = s.putOI >= 1000 ? (s.putOI / 1000).toFixed(1) + 'K' : s.putOI;
-                html += `<tr><td class="support ${isStrong ? 'strong' : ''}">${label} ${s.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right; color:var(--text2);">距現貨 -${pct}%</td></tr>`;
-            });
-            html += '</table></div>';
-            document.getElementById('srRating').innerHTML = html;
         }
 
         function buildSRBars() {
             const div = document.getElementById('srList');
             if (!DATA.sr.length) { div.innerHTML = '<div class="energy-empty">📭 尚無資料</div>'; return; }
-            const sorted = [...DATA.sr].sort((a, b) => b.strike - a.strike);
-            const maxTotal = Math.max(1, ...sorted.map(r => r.callOI + r.putOI));
+            const sorted = [...DATA.sr].sort((a, b) => safeNum(b['履約價']) - safeNum(a['履約價']));
+            const maxTotal = Math.max(1, ...sorted.map(r => safeNum(r['CallOI']) + safeNum(r['PutOI'])));
+            let maxCallOI = Math.max(1, ...sorted.map(r => safeNum(r['CallOI'])));
+            let maxPutOI = Math.max(1, ...sorted.map(r => safeNum(r['PutOI'])));
             let html = '';
             sorted.forEach((r, idx) => {
-                const cPct = Math.max(3, (r.callOI / maxTotal) * 100);
-                const pPct = Math.max(3, (r.putOI / maxTotal) * 100);
-                const isZG = DATA.zg === r.strike;
-                const isMaxC = DATA.maxCall && DATA.maxCall.strike === r.strike;
-                const isMaxP = DATA.maxPut && DATA.maxPut.strike === r.strike;
-                let rc = 'energy-row';
-                if (isZG) rc += ' is-zg';
-                if (isMaxC) rc += ' is-maxc';
-                if (isMaxP) rc += ' is-maxp';
+                const strike = safeNum(r['履約價']);
+                const c = safeNum(r['CallOI']);
+                const p = safeNum(r['PutOI']);
+                const cPct = Math.max(3, (c / maxTotal) * 100);
+                const pPct = Math.max(3, (p / maxTotal) * 100);
+                const isZG = DATA.zg === strike;
+                const isMaxC = DATA.maxCall && DATA.maxCall.strike === strike;
+                const isMaxP = DATA.maxPut && DATA.maxPut.strike === strike;
+                let rowClass = 'energy-row';
+                if (isZG) rowClass += ' is-zg';
+                if (isMaxC) rowClass += ' is-maxc';
+                if (isMaxP) rowClass += ' is-maxp';
                 let tags = '';
                 if (isZG) tags += '<span class="energy-tag zg">ZG</span>';
                 if (isMaxC) tags += '<span class="energy-tag maxc">最強壓</span>';
                 if (isMaxP) tags += '<span class="energy-tag maxp">最強撐</span>';
-                const cD = r.callOI >= 1000 ? (r.callOI / 1000).toFixed(1) + 'K' : String(r.callOI);
-                const pD = r.putOI >= 1000 ? (r.putOI / 1000).toFixed(1) + 'K' : String(r.putOI);
-                html += `<div class="${rc}"><div class="energy-left"><div class="bar-track"><div class="bar-fill" style="width:${cPct}%;">${r.callOI > 0 ? `<span class="bar-value">${cD}</span>` : ''}</div></div></div><div class="energy-center"><span class="energy-price">${r.strike.toLocaleString()}</span>${tags ? `<div class="energy-tags">${tags}</div>` : ''}</div><div class="energy-right"><div class="bar-track"><div class="bar-fill" style="width:${pPct}%;">${r.putOI > 0 ? `<span class="bar-value">${pD}</span>` : ''}</div></div></div></div>`;
+                const cDisplay = c >= 1000 ? (c / 1000).toFixed(1) + 'K' : String(c);
+                const pDisplay = p >= 1000 ? (p / 1000).toFixed(1) + 'K' : String(p);
+                html += `<div class="${rowClass}" style="animation: energyFadeIn ${0.3 + idx * 0.015}s ease both;">
+                    <div class="energy-left"><div class="bar-track"><div class="bar-fill" style="width: ${cPct}%;">${c > 0 ? `<span class="bar-value">${cDisplay}</span>` : ''}</div></div></div>
+                    <div class="energy-center"><span class="energy-price">${strike.toLocaleString()}</span>${tags ? `<div class="energy-tags">${tags}</div>` : ''}</div>
+                    <div class="energy-right"><div class="bar-track"><div class="bar-fill" style="width: ${pPct}%;">${p > 0 ? `<span class="bar-value">${pDisplay}</span>` : ''}</div></div></div>
+                </div>`;
             });
             div.innerHTML = html;
         }
@@ -342,13 +374,18 @@
         function buildChipsChart() {
             if (!DATA.chips.length) return;
             const data = DATA.chips.slice(-30);
+            const labels = data.map(r => r['日期']);
             if (charts.cChips) charts.cChips.destroy();
             charts.cChips = new Chart(document.getElementById('cChips').getContext('2d'), {
-                type: 'line', data: { labels: data.map(r => r.date), datasets: [
-                    { label: 'Call OI 變化', data: data.map(r => r.callChange), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
-                    { label: 'Put OI 變化', data: data.map(r => r.putChange), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
-                ]},
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 } } }, y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Call OI 變化', data: data.map(r => safeNum(r['Call變化'])), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
+                        { label: 'Put OI 變化', data: data.map(r => safeNum(r['Put變化'])), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 }, maxRotation: 45 } }, y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
             });
         }
 
@@ -356,50 +393,43 @@
             if (!DATA.cumulative.length) return;
             const range = parseInt(document.getElementById('cumRange').value || 60);
             const data = DATA.cumulative.slice(-range);
+            const labels = data.map(r => r['日期']);
             if (charts.cCum) charts.cCum.destroy();
             charts.cCum = new Chart(document.getElementById('cCum').getContext('2d'), {
-                type: 'line', data: { labels: data.map(r => r.date), datasets: [
-                    { label: '累積 Call OI', data: data.map(r => r.cumCall), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
-                    { label: '累積 Put OI', data: data.map(r => r.cumPut), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
-                ]},
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 } } }, y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: '累積 Call OI', data: data.map(r => safeNum(r['累積Call'])), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
+                        { label: '累積 Put OI', data: data.map(r => safeNum(r['累積Put'])), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 }, maxRotation: 45 } }, y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
             });
         }
 
         async function loadTVString() {
-            const csv = await fetchRawCSV("NQ 合併", "A2:A2");
+            const csv = await fetchSheetCSV("NQ 合併", "A2:A2");
             document.getElementById('tvInput').value = csv.replace(/"/g, '').trim();
         }
 
-        async function copyTV() {
+        function copyTV() {
             const input = document.getElementById('tvInput');
-            try {
-                await navigator.clipboard.writeText(input.value);
-                const btn = document.querySelector('.copy-btn');
-                btn.textContent = '✅ 已複製';
-                setTimeout(() => { btn.textContent = '📋 複製'; }, 1500);
-            } catch (e) {
-                input.select();
-                document.execCommand('copy');
-            }
+            input.select();
+            document.execCommand('copy');
+            const btn = input.parentElement.querySelector('.copy-btn');
+            btn.textContent = '✅ 已複製';
+            setTimeout(() => { btn.textContent = '📋 複製'; }, 1500);
         }
 
         function switchTab(id) {
-            TABS.forEach(t => { const sec = document.getElementById(t); if (sec) sec.classList.remove('active'); });
+            document.querySelectorAll('.main-tabs .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            document.querySelectorAll('#tabBar .tab').forEach(t => t.classList.remove('active'));
-            const tabBtn = document.querySelector(`#tabBar .tab[data-tab="${id}"]`);
-            if (tabBtn) tabBtn.classList.add('active');
+            document.querySelector(`.main-tabs .tab[onclick="switchTab('${id}')"]`).classList.add('active');
             if (id === 'cumulative') buildCumulativeChart();
             if (id === 'chips') buildChipsChart();
         }
-
-        document.getElementById('tabBar').addEventListener('click', function(e) {
-            const tab = e.target.closest('.tab');
-            if (!tab) return;
-            const id = tab.getAttribute('data-tab');
-            if (id) switchTab(id);
-        });
 
         async function loadAll() {
             document.getElementById('statusText').textContent = '更新中...';
@@ -411,9 +441,15 @@
                 document.getElementById('statusText').textContent = '✅ 每日 07:00 自動更新';
             } catch (e) {
                 document.getElementById('statusText').textContent = '❌ 更新失敗';
-                console.error(e);
             }
         }
+
+        // 注入能量条动画
+        (function() {
+            const style = document.createElement('style');
+            style.textContent = `@keyframes energyFadeIn { 0% { opacity: 0; transform: translateY(6px) scale(0.98); } 100% { opacity: 1; transform: translateY(0) scale(1); } }`;
+            document.head.appendChild(style);
+        })();
 
         loadAll();
     </script>
