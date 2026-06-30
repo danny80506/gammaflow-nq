@@ -275,7 +275,7 @@ def write_nq_chips_analysis(sh, gex_data, today_str):
                 max_put["履約價"], max_put["put_oi"]]
     if today_str in dates:
         idx = dates.index(today_str) + 1
-        ws.update(f"A{idx}:J{idx}", [row_data])
+        ws.update(values=[row_data], range_name=f"A{idx}:J{idx}")
     else:
         ws.append_row(row_data)
     print(f"✅ 已寫入 NQ 籌碼分析")
@@ -307,7 +307,7 @@ def write_nq_cumulative(sh, gex_data, today_str):
     row_data = [today_str, total_call, total_put, call_change, put_change, cum_call, cum_put]
     if today_str in dates:
         idx = dates.index(today_str) + 1
-        ws.update(f"A{idx}:G{idx}", [row_data])
+        ws.update(values=[row_data], range_name=f"A{idx}:G{idx}")
     else:
         ws.append_row(row_data)
     print(f"✅ 已寫入 NQ 累計趨勢")
