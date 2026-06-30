@@ -21,6 +21,7 @@
         .section.active { display: block; }
         .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 18px; }
+        .card.full { grid-column: 1 / -1; overflow-x: auto; }
         .card h3 { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text3); margin-bottom: 8px; }
         .card .big { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; }
         .card .sub { font-size: 13px; color: var(--text2); margin-top: 6px; }
@@ -59,6 +60,22 @@
         .copy-row { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
         .copy-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 10px 14px; color: var(--text); font-size: 13px; font-family: 'JetBrains Mono', monospace; }
         .copy-btn { background: transparent; border: 1px solid var(--border2); border-radius: 4px; padding: 10px 16px; color: var(--primary-light); font-size: 14px; cursor: pointer; }
+        /* 分析卡片样式 */
+        .analysis-card { border-left: 4px solid var(--primary); background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 20px; margin-top: 16px; }
+        .analysis-card h3 { font-family: 'JetBrains Mono', monospace; font-size: 16px; color: var(--primary-light); letter-spacing: 1px; margin-bottom: 14px; }
+        .analysis-block { margin-bottom: 18px; }
+        .analysis-block h4 { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--primary-dim); margin-bottom: 8px; border-bottom: 1px solid rgba(74,158,224,0.08); padding-bottom: 6px; }
+        .analysis-item { font-size: 15px; padding: 8px 0; line-height: 1.5; border-bottom: 1px solid rgba(74,158,224,0.04); color: var(--text2); }
+        .analysis-item:last-child { border-bottom: none; }
+        .analysis-item.warn { color: #ff9f7c; }
+        .analysis-item.info { color: #b0c4de; }
+        .analysis-item.bull { color: #8be0a0; }
+        .analysis-item.bear { color: #f9a8a8; }
+        .analysis-tag { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 2px 10px; border-radius: 2px; margin-right: 8px; font-weight: 600; letter-spacing: 0.5px; }
+        .tag-warn { background: rgba(248,81,73,0.25); color: #fca5a5; }
+        .tag-info { background: rgba(74,158,224,0.15); color: #93c5fd; }
+        .tag-bull { background: rgba(61,191,140,0.15); color: #86efac; }
+        .tag-bear { background: rgba(248,81,73,0.15); color: #fca5a5; }
     </style>
 </head>
 <body>
@@ -79,6 +96,11 @@
             <div class="card"><h3>🟢 最大支撐</h3><div class="big green" id="mSupport">-</div><div class="sub" id="mSupportOI"></div></div>
             <div class="card"><h3>⚡ Zero Gamma</h3><div class="big purple" id="mZG">-</div><div class="sub">多空分界</div></div>
             <div class="card"><h3>📈 NQ 參考價</h3><div class="big" id="mRef">⏳</div><div class="sub" id="mPos"></div></div>
+        </div>
+        <!-- 主力結構拆解與後市策略卡片 -->
+        <div class="analysis-card" id="analysisCard">
+            <h3>🧠 市場結構與策略參考</h3>
+            <div id="analysisContent" style="color:var(--text2);font-size:14px;">載入中...</div>
         </div>
         <div class="section-title" style="margin-top:24px;">📊 美股市場總覽</div>
         <div class="summary-grid" id="marketCards">
@@ -131,7 +153,7 @@
             return csv.trim().split('\n').filter(l => l.trim()).map(l => l.split(',').map(c => c.replace(/^"|"$/g, '').trim()));
         }
 
-        // ========== 從 TV 字串解析 ZG ==========
+        // 从 TV 字串解析 ZG
         function parseZGFromTVString(tvStr) {
             if (!tvStr) return null;
             const items = tvStr.split(';');
@@ -142,6 +164,64 @@
                 }
             }
             return null;
+        }
+
+        // ========== 主力結構分析 ==========
+        function buildAnalysis() {
+            const container = document.getElementById('analysisContent');
+            if (!container) return;
+            
+            const last = DATA.chips.length > 0 ? DATA.chips[DATA.chips.length - 1] : null;
+            if (!last || !DATA.maxCall || !DATA.maxPut || !DATA.zg) {
+                container.innerHTML = '<div class="analysis-item info">⏳ 數據載入中，請稍後...</div>';
+                return;
+            }
+
+            let html = '';
+            
+            // 1. 籌碼方向判斷
+            html += '<div class="analysis-block"><h4>📊 籌碼動向</h4>';
+            const callChange = last.callChange;
+            const putChange = last.putChange;
+            const cpRatio = last.cpRatio;
+            
+            if (callChange > 0 && putChange < 0) {
+                html += '<div class="analysis-item bear"><span class="analysis-tag tag-bear">偏空</span>Call OI 增加 +' + callChange.toLocaleString() + ' 口，Put OI 減少 ' + fmt(putChange) + ' 口，市場傾向賣出買權（看不漲），短線壓力增強。</div>';
+            } else if (callChange < 0 && putChange > 0) {
+                html += '<div class="analysis-item bull"><span class="analysis-tag tag-bull">偏多</span>Call OI 減少 ' + fmt(callChange) + ' 口，Put OI 增加 +' + putChange.toLocaleString() + ' 口，市場傾向賣出賣權（看不跌），短線支撐增強。</div>';
+            } else if (callChange > 0 && putChange > 0) {
+                html += '<div class="analysis-item info"><span class="analysis-tag tag-info">中性</span>Call 與 Put OI 同步增加，市場多空分歧，籌碼集中度上升，留意突破方向。</div>';
+            } else {
+                html += '<div class="analysis-item info"><span class="analysis-tag tag-info">觀望</span>Call 與 Put OI 變化不大，市場等待新的事件驅動。</div>';
+            }
+            
+            html += `<div class="analysis-item">C/P 比值：${cpRatio.toFixed(2)}（${cpRatio > 1 ? 'Call 多於 Put，偏空結構' : 'Put 多於 Call，偏多結構'}）</div>`;
+            html += '</div>';
+
+            // 2. Gamma 結構
+            html += '<div class="analysis-block"><h4>📐 Gamma 結構</h4>';
+            if (DATA.market && DATA.market.ndx > 0) {
+                const spot = DATA.market.ndx;
+                const diff = ((spot - DATA.zg) / DATA.zg * 100);
+                if (diff > 2) {
+                    html += `<div class="analysis-item bull"><span class="analysis-tag tag-bull">正 Gamma 區</span>NQ 參考價 ${spot.toLocaleString()} 高於 ZG ${DATA.zg.toLocaleString()}（+${diff.toFixed(1)}%），市場處於正 Gamma 區域，波動傾向抑制，適合區間操作。</div>`;
+                } else if (diff < -2) {
+                    html += `<div class="analysis-item bear"><span class="analysis-tag tag-bear">負 Gamma 區</span>NQ 參考價 ${spot.toLocaleString()} 低於 ZG ${DATA.zg.toLocaleString()}（${diff.toFixed(1)}%），市場處於負 Gamma 區域，波動可能放大，適合順勢操作。</div>`;
+                } else {
+                    html += `<div class="analysis-item info"><span class="analysis-tag tag-info">ZG 附近</span>NQ 參考價 ${spot.toLocaleString()} 接近 ZG ${DATA.zg.toLocaleString()}，Gamma 結構即將翻轉，等待方向表態。</div>`;
+                }
+            } else {
+                html += `<div class="analysis-item info"><span class="analysis-tag tag-info">等待數據</span>Zero Gamma 位於 ${DATA.zg.toLocaleString()}，等待 NQ 市場數據寫入後將自動分析結構。</div>`;
+            }
+            html += '</div>';
+
+            // 3. 關鍵價位
+            html += '<div class="analysis-block"><h4>🔑 關鍵價位</h4>';
+            html += `<div class="analysis-item">最大壓力：<span style="color:#ff6b6b;">${DATA.maxCall.strike.toLocaleString()}</span>（Call OI ${DATA.maxCall.oi.toLocaleString()} 口）</div>`;
+            html += `<div class="analysis-item">最大支撐：<span style="color:#5cdba3;">${DATA.maxPut.strike.toLocaleString()}</span>（Put OI ${DATA.maxPut.oi.toLocaleString()} 口）</div>`;
+            html += '</div>';
+
+            container.innerHTML = html;
         }
 
         // ========== 市場數據 ==========
@@ -190,6 +270,7 @@
                 `<tr><td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td>${r.cpRatio.toFixed(2)}</td></tr>`
             ).join('');
             buildChipsChart();
+            buildAnalysis();
         }
 
         // ========== 累計趨勢 ==========
@@ -208,9 +289,8 @@
             buildCumulativeChart();
         }
 
-        // ========== 選擇權合併 (直接從 TV 字串解析 ZG) ==========
+        // ========== 選擇權合併 ==========
         async function loadSR() {
-            // 1. 從 A2 獲取 TV 字串並解析 ZG
             const tvCsv = await fetchRawCSV("NQ 合併", "A2:A2");
             const tvStr = tvCsv.replace(/"/g, '').trim();
             DATA.zg = parseZGFromTVString(tvStr);
@@ -223,7 +303,6 @@
                 document.getElementById('mZG').textContent = '-';
             }
 
-            // 2. 讀取表格數據用於能量條和評級表
             const csv = await fetchRawCSV("NQ 合併");
             const rows = csvToRows(csv);
             if (rows.length < 5) return;
@@ -235,6 +314,7 @@
 
             buildSRBars();
             if (DATA.market && DATA.market.ndx > 0) buildRatingTable();
+            buildAnalysis();
         }
 
         function buildRatingTable() {
