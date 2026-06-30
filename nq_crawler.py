@@ -4,6 +4,7 @@
 NQ 選擇權 GEX 全自動爬蟲 v1.5
 - 自動判斷季度合約（到期日 = 第三個週五）
 - 每日總 Call/Put OI 變化 + 累計趨勢
+- 美股盤後數據（NDX, SPX, SOX, VIX, VXN, AAPL, MSFT, NVDA）
 - 籌碼分析寫入試算表
 """
 
@@ -339,7 +340,27 @@ def write_nq_cumulative(sh, gex_data, today_str):
         ws.append_row(row_data)
     print(f"✅ 已寫入 NQ 累計趨勢")
 
-# ---------- 7. 主程式 ----------
+# ---------- 7. 美股市場數據 ----------
+def write_us_market_data(sh, us_data, ndx_close, ndx_change, today_str):
+    ws = ensure_sheet(sh, "NQ 市場數據", rows=100, cols=16)
+    ws.clear()
+    ws.append_row(["日期", "NDX", "NDX漲跌%", "SPX", "SPX漲跌%", "SOX", "SOX漲跌%",
+                   "VIX", "VXN", "AAPL", "AAPL漲跌%", "MSFT", "MSFT漲跌%", "NVDA", "NVDA漲跌%"])
+    row = [
+        today_str,
+        round(ndx_close, 2), round(ndx_change, 2),
+        us_data.get("SPX", {}).get("close", 0), us_data.get("SPX", {}).get("change_pct", 0),
+        us_data.get("SOX", {}).get("close", 0), us_data.get("SOX", {}).get("change_pct", 0),
+        us_data.get("VIX", {}).get("close", 0),
+        us_data.get("VXN", {}).get("close", 0),
+        us_data.get("AAPL", {}).get("close", 0), us_data.get("AAPL", {}).get("change_pct", 0),
+        us_data.get("MSFT", {}).get("close", 0), us_data.get("MSFT", {}).get("change_pct", 0),
+        us_data.get("NVDA", {}).get("close", 0), us_data.get("NVDA", {}).get("change_pct", 0),
+    ]
+    ws.append_row(row)
+    print(f"✅ 已寫入 NQ 市場數據")
+
+# ---------- 8. 主程式 ----------
 def main():
     print("=" * 60)
     print("NQ GEX 全自動爬蟲 v1.5")
@@ -352,9 +373,42 @@ def main():
     csv_path = download_barchart_csv()
 
     import yfinance as yf
+
+    # 抓取波動率與標的價格
     sigma = yf.Ticker(SIGMA_SOURCE).history(period="1d")['Close'].iloc[-1]
     S = yf.Ticker(S_SOURCE).history(period="1d")['Close'].iloc[-1]
-    print(f"✅ ^VXN = {sigma:.2f}, ^NDX = {S:.2f}")
+    ndx_open = yf.Ticker(S_SOURCE).history(period="1d")['Open'].iloc[-1]
+    ndx_change = (S - ndx_open) / ndx_open * 100
+    print(f"✅ ^VXN = {sigma:.2f}, ^NDX = {S:.2f} ({ndx_change:+.2f}%)")
+
+    # 抓取美股盤後數據
+    print("\n📊 抓取美股盤後數據...")
+    us_tickers = {
+        "SPX": "^GSPC",
+        "SOX": "^SOX",
+        "VIX": "^VIX",
+        "AAPL": "AAPL",
+        "MSFT": "MSFT",
+        "NVDA": "NVDA",
+    }
+    us_data = {}
+    for name, symbol in us_tickers.items():
+        try:
+            ticker = yf.Ticker(symbol)
+            hist = ticker.history(period="1d")
+            if not hist.empty:
+                close = hist['Close'].iloc[-1]
+                open_price = hist['Open'].iloc[-1]
+                change_pct = (close - open_price) / open_price * 100
+                us_data[name] = {
+                    "close": round(close, 2),
+                    "change_pct": round(change_pct, 2)
+                }
+                print(f"  {name}: {close:.2f} ({change_pct:+.2f}%)")
+        except Exception as e:
+            print(f"  ⚠️ {name} 抓取失敗: {e}")
+            us_data[name] = {"close": 0, "change_pct": 0}
+    us_data["VXN"] = {"close": round(sigma, 2), "change_pct": 0}
 
     details = parse_barchart_csv(csv_path)
     print(f"✅ 解析 {len(details)} 筆明細")
@@ -385,6 +439,7 @@ def main():
     write_to_sheet(gex_data, tv_string)
     write_nq_chips_analysis(sh, gex_data, today_str)
     write_nq_cumulative(sh, gex_data, today_str)
+    write_us_market_data(sh, us_data, S, ndx_change, today_str)
 
     print("\n✅ 全部完成！")
 
