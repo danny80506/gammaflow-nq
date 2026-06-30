@@ -29,6 +29,7 @@
         .rating-table { width: 100%; font-size: 13px; border-collapse: collapse; margin-bottom: 16px; background: var(--bg2); border-radius: 4px; overflow: hidden; }
         .rating-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); }
         .rating-table .pressure { color: #ff8c8c; } .rating-table .support { color: #8ce0a0; }
+        .rating-table .strong-pressure { color: #ff4444; font-weight: 700; } .rating-table .strong-support { color: #44dd44; font-weight: 700; }
         .rating-table .spot-row td { background: rgba(74,158,224,0.08); font-weight: 700; color: var(--primary-light); }
         .table-wrap { overflow-x: auto; }
         table { width: 100%; font-size: 12px; border-collapse: collapse; min-width: 600px; background: var(--bg2); }
@@ -133,7 +134,7 @@
             if (rows.length < 2 || !rows[0][0].includes('日期')) {
                 document.getElementById('marketCards').innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;color:var(--text3);">⏳ 美股市場數據尚未就緒，等待爬蟲寫入</div>';
                 document.getElementById('mRef').textContent = '-';
-                DATA.market = { ndx: 0 };
+                DATA.market = null;
                 return;
             }
             const last = rows[rows.length - 1];
@@ -205,22 +206,17 @@
             const dataRows = rows.slice(4);
             DATA.sr = dataRows.map(r => ({
                 strike: safeNum(r[1]), callOI: safeNum(r[2]), putOI: safeNum(r[3]),
-                zgVal: safeNum(r[7])  // 0 或 1
+                zgVal: safeNum(r[7])
             })).filter(r => r.strike > 0);
-            
-            // 找 ZG 標記 = 1 的那個履約價
             const zgRow = DATA.sr.find(r => r.zgVal === 1);
             DATA.zg = zgRow ? zgRow.strike : null;
             if (DATA.zg) {
                 document.getElementById('mZG').textContent = DATA.zg.toLocaleString();
-                // 用最大壓力或最大支撐附近的價位作為參考價，直到有真實 NDX
-                const refPrice = DATA.market ? DATA.market.ndx : 
-                    (DATA.maxCall ? DATA.maxCall.strike : 0);
-                if (refPrice > 0) {
-                    document.getElementById('mPos').textContent = refPrice > DATA.zg ? '🟢 偏多區' : refPrice < DATA.zg ? '🔴 偏空區' : '';
-                    // 同時更新 NQ 參考價（如果還沒有 NDX）
+                const ref = DATA.market ? DATA.market.ndx : (DATA.maxCall ? DATA.maxCall.strike : 0);
+                if (ref > 0) {
+                    document.getElementById('mPos').textContent = ref > DATA.zg ? '🟢 偏多區' : ref < DATA.zg ? '🔴 偏空區' : '⚪ ZG附近';
                     if (!DATA.market || !DATA.market.ndx) {
-                        document.getElementById('mRef').textContent = refPrice.toLocaleString() + ' (估)';
+                        document.getElementById('mRef').textContent = ref.toLocaleString() + ' (估)';
                     }
                 }
             }
@@ -229,11 +225,14 @@
         }
 
         function buildRatingTable() {
-            // 使用最大壓力作為現貨參考（如果 NDX 還沒有）
-            const spot = DATA.market && DATA.market.ndx > 0 ? DATA.market.ndx : 
-                (DATA.maxCall ? DATA.maxCall.strike : 0);
+            // 現貨參考價：優先 NDX，否則取履約價中位數
+            let spot = DATA.market && DATA.market.ndx > 0 ? DATA.market.ndx : null;
+            if (!spot && DATA.sr.length > 0) {
+                const strikes = DATA.sr.map(r => r.strike).sort((a,b) => a - b);
+                spot = strikes[Math.floor(strikes.length / 2)];
+            }
             if (!spot || !DATA.sr.length) { document.getElementById('srRating').innerHTML = ''; return; }
-            
+
             let above = [], below = [];
             DATA.sr.forEach(r => {
                 const d = r.strike - spot;
@@ -245,16 +244,18 @@
             const topP = above.slice(0, 3), topS = below.slice(0, 3);
             const sc = DATA.maxCall ? DATA.maxCall.strike : null;
             const sp = DATA.maxPut ? DATA.maxPut.strike : null;
-            
+
             let h = '<div style="margin:16px 0;background:var(--bg2);border-radius:4px;padding:12px 16px;border-left:3px solid var(--primary-light);"><div style="font-weight:700;color:var(--primary-light);margin-bottom:8px;">📋 壓力支撐評級表</div><table class="rating-table">';
             topP.forEach(p => {
+                const isStrong = p.strike === sc;
                 const oiD = p.callOI >= 1000 ? (p.callOI/1000).toFixed(1)+'K' : p.callOI;
-                h += `<tr><td class="pressure">${p.strike===sc?'🔵 強壓':'🔹 壓力'} ${p.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 +${((p.dist/spot)*100).toFixed(1)}%</td></tr>`;
+                h += `<tr><td class="${isStrong?'strong-pressure':'pressure'}">${isStrong?'🔴 強壓':'🟠 壓力'} ${p.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 +${((p.dist/spot)*100).toFixed(1)}%</td></tr>`;
             });
             h += `<tr class="spot-row"><td>─── 現貨約 ${spot.toLocaleString()} ───</td><td></td></tr>`;
             topS.forEach(s => {
+                const isStrong = s.strike === sp;
                 const oiD = s.putOI >= 1000 ? (s.putOI/1000).toFixed(1)+'K' : s.putOI;
-                h += `<tr><td class="support">${s.strike===sp?'🟢 強撐':'🟩 支撐'} ${s.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 -${((s.dist/spot)*100).toFixed(1)}%</td></tr>`;
+                h += `<tr><td class="${isStrong?'strong-support':'support'}">${isStrong?'🟢 強撐':'🟩 支撐'} ${s.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 -${((s.dist/spot)*100).toFixed(1)}%</td></tr>`;
             });
             h += '</table></div>';
             document.getElementById('srRating').innerHTML = h;
