@@ -131,6 +131,19 @@
             return csv.trim().split('\n').filter(l => l.trim()).map(l => l.split(',').map(c => c.replace(/^"|"$/g, '').trim()));
         }
 
+        // ========== 從 TV 字串解析 ZG ==========
+        function parseZGFromTVString(tvStr) {
+            if (!tvStr) return null;
+            const items = tvStr.split(';');
+            for (const item of items) {
+                const fields = item.split(',');
+                if (fields.length >= 6 && fields[5].trim() === '1') {
+                    return safeNum(fields[0]);
+                }
+            }
+            return null;
+        }
+
         // ========== 市場數據 ==========
         async function loadMarket() {
             const csv = await fetchRawCSV("NQ 市場數據");
@@ -195,24 +208,31 @@
             buildCumulativeChart();
         }
 
-        // ========== 選擇權合併 (ZG 直接檢查原始字串) ==========
+        // ========== 選擇權合併 (直接從 TV 字串解析 ZG) ==========
         async function loadSR() {
+            // 1. 從 A2 獲取 TV 字串並解析 ZG
+            const tvCsv = await fetchRawCSV("NQ 合併", "A2:A2");
+            const tvStr = tvCsv.replace(/"/g, '').trim();
+            DATA.zg = parseZGFromTVString(tvStr);
+            if (DATA.zg) {
+                document.getElementById('mZG').textContent = DATA.zg.toLocaleString();
+                if (DATA.market && DATA.market.ndx > 0) {
+                    document.getElementById('mPos').textContent = DATA.market.ndx > DATA.zg ? '🟢 偏多區' : DATA.market.ndx < DATA.zg ? '🔴 偏空區' : '⚪ ZG附近';
+                }
+            } else {
+                document.getElementById('mZG').textContent = '-';
+            }
+
+            // 2. 讀取表格數據用於能量條和評級表
             const csv = await fetchRawCSV("NQ 合併");
             const rows = csvToRows(csv);
             if (rows.length < 5) return;
             const dataRows = rows.slice(4);
             DATA.sr = dataRows.map(r => ({
                 strike: safeNum(r[1]), callOI: safeNum(r[2]), putOI: safeNum(r[3]),
-                isZG: (r[7] || '').includes('分界')
+                isZG: DATA.zg !== null && safeNum(r[1]) === DATA.zg
             })).filter(r => r.strike > 0);
-            const zgRow = DATA.sr.find(r => r.isZG);
-            DATA.zg = zgRow ? zgRow.strike : null;
-            if (DATA.zg) {
-                document.getElementById('mZG').textContent = DATA.zg.toLocaleString();
-                if (DATA.market && DATA.market.ndx > 0) {
-                    document.getElementById('mPos').textContent = DATA.market.ndx > DATA.zg ? '🟢 偏多區' : DATA.market.ndx < DATA.zg ? '🔴 偏空區' : '⚪ ZG附近';
-                }
-            }
+
             buildSRBars();
             if (DATA.market && DATA.market.ndx > 0) buildRatingTable();
         }
@@ -241,7 +261,7 @@
             const maxT = Math.max(1, ...sorted.map(r => r.callOI + r.putOI));
             div.innerHTML = sorted.map(r => {
                 const cP = Math.max(3, (r.callOI/maxT)*100), pP = Math.max(3, (r.putOI/maxT)*100);
-                const isZG = DATA.zg === r.strike, isMC = DATA.maxCall && DATA.maxCall.strike === r.strike, isMP = DATA.maxPut && DATA.maxPut.strike === r.strike;
+                const isZG = r.isZG, isMC = DATA.maxCall && DATA.maxCall.strike === r.strike, isMP = DATA.maxPut && DATA.maxPut.strike === r.strike;
                 const cD = r.callOI >= 1000 ? (r.callOI/1000).toFixed(1)+'K' : r.callOI, pD = r.putOI >= 1000 ? (r.putOI/1000).toFixed(1)+'K' : r.putOI;
                 let tags = '';
                 if (isZG) tags += '<span class="energy-tag zg">ZG</span>';
