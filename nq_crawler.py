@@ -1,409 +1,437 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-NQ 選擇權 GEX 全自動爬蟲 v1.5
-- 自動判斷季度合約（到期日 = 第三個週五）
-- 每日總 Call/Put OI 變化 + 累計趨勢
-- 美股盤後數據（NDX, SPX, SOX, VIX, VXN, AAPL, MSFT, NVDA, NQ期貨, TSM）
-- 籌碼分析寫入試算表
-"""
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>GammaFlow NQ · 那斯達克選擇權儀表板</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4A9EE0; --primary-light: #6BB5F0; --primary-dim: #2A6EA0;
+            --red: #E05252; --red-glow: #ff6b6b; --green: #3DBF8C; --green-glow: #5cdba3;
+            --bg: #111318; --bg2: #181C23; --bg3: #1E232D; --bg4: #242A36;
+            --border: rgba(74, 158, 224, 0.15); --border2: rgba(74, 158, 224, 0.3);
+            --text: #F0ECE6; --text2: #ADA89A; --text3: #6B655C;
+            --purple: #b085f5; --amber: #d2991d; --orange: #f0883e; --yellow: #e3b341;
+            --card-radius: 6px; --bar-height: 22px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); font-size: 18px; padding-bottom: 20px; -webkit-tap-highlight-color: transparent; }
+        .header { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg2); flex-wrap: wrap; gap: 10px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header h1 { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 600; color: var(--primary-light); letter-spacing: 2px; white-space: nowrap; }
+        .header-sub { font-size: 12px; color: var(--text2); white-space: nowrap; }
+        .refresh-btn { background: transparent; border: 1px solid var(--border2); border-radius: 4px; padding: 6px 14px; cursor: pointer; color: var(--primary-light); font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: nowrap; transition: background 0.15s; }
+        .refresh-btn:hover { background: rgba(74, 158, 224, 0.08); }
+        .main-tabs { display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto; border-bottom: 1px solid var(--border); background: var(--bg); -webkit-overflow-scrolling: touch; }
+        .main-tabs .tab { flex-shrink: 0; padding: 8px 18px; font-family: 'JetBrains Mono', monospace; font-size: 15px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: transparent; color: var(--text2); white-space: nowrap; transition: all 0.15s; }
+        .main-tabs .tab.active { background: rgba(74, 158, 224, 0.12); color: var(--primary-light); border-color: var(--border2); }
+        .section { display: none; padding: 16px; }
+        .section.active { display: block; }
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 18px; }
+        .card.full { grid-column: 1 / -1; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .card h3 { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--text3); letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase; }
+        .card .big { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700; }
+        .card .sub { font-size: 14px; color: var(--text2); margin-top: 6px; }
+        .red { color: var(--red); } .green { color: var(--green); } .purple { color: var(--purple); }
+        .section-title { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 600; color: var(--text2); margin: 12px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 1px; }
+        .notice { font-size: 14px; color: var(--text2); padding: 10px 16px; background: var(--bg2); border-radius: 4px; margin-bottom: 16px; line-height: 1.6; border-left: 2px solid var(--border2); }
+        .rating-table { width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 16px; background: var(--bg2); border-radius: 4px; overflow: hidden; }
+        .rating-table td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); }
+        .rating-table .strong { font-weight: 700; }
+        .rating-table .pressure { color: #ff8c8c; } .rating-table .support { color: #8ce0a0; }
+        .rating-table .spot-row td { background: rgba(74,158,224,0.08); font-weight: 700; color: var(--primary-light); }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; font-size: 13px; border-collapse: collapse; min-width: 660px; background: var(--bg2); border-radius: 4px; overflow: hidden; }
+        th { padding: 8px 6px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap; background: var(--bg3); font-weight: 400; }
+        td { padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.04); text-align: center; white-space: nowrap; font-size: 13px; color: var(--text); }
+        .pos { color: var(--red); } .neg { color: var(--green); }
+        .chart-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+        .chart-legend span { display: flex; align-items: center; gap: 6px; } .ld { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
+        .energy-container { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+        .energy-row { display: flex; align-items: stretch; height: 38px; background: rgba(255, 255, 255, 0.02); border-radius: var(--card-radius); border: 1px solid rgba(255, 255, 255, 0.04); transition: all 0.25s ease; position: relative; overflow: hidden; cursor: default; }
+        .energy-row:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(74, 158, 224, 0.18); transform: scale(1.002); }
+        .energy-row.is-zg { background: rgba(163, 113, 247, 0.10); border-color: rgba(163, 113, 247, 0.20); }
+        .energy-row.is-maxc { background: rgba(224, 82, 82, 0.07); border-color: rgba(224, 82, 82, 0.18); }
+        .energy-row.is-maxp { background: rgba(61, 191, 140, 0.07); border-color: rgba(61, 191, 140, 0.18); }
+        .energy-left { flex: 1; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; min-width: 0; }
+        .energy-left .bar-track { width: 100%; height: var(--bar-height); border-radius: 4px 0 0 4px; background: rgba(224, 82, 82, 0.08); overflow: hidden; direction: rtl; }
+        .energy-left .bar-fill { height: 100%; border-radius: 4px 0 0 4px; background: linear-gradient(90deg, #ff6b6b, #e05252, #b33a3a); box-shadow: 0 0 18px rgba(224, 82, 82, 0.30); transition: width 0.6s; display: flex; align-items: center; justify-content: center; min-width: 32px; direction: ltr; }
+        .energy-right { flex: 1; display: flex; align-items: center; padding-left: 6px; min-width: 0; }
+        .energy-right .bar-track { width: 100%; height: var(--bar-height); border-radius: 0 4px 4px 0; background: rgba(61, 191, 140, 0.08); overflow: hidden; }
+        .energy-right .bar-fill { height: 100%; border-radius: 0 4px 4px 0; background: linear-gradient(270deg, #5cdba3, #3DBF8C, #2a8f6a); box-shadow: 0 0 18px rgba(61, 191, 140, 0.30); transition: width 0.6s; display: flex; align-items: center; justify-content: center; min-width: 32px; }
+        .bar-value { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; color: #fff; white-space: nowrap; z-index: 2; }
+        .energy-center { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 10px; min-width: 80px; z-index: 3; }
+        .energy-price { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--primary-light); }
+        .energy-tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; margin-top: 1px; }
+        .energy-tag { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.06); color: var(--text3); }
+        .energy-tag.zg { background: rgba(163, 113, 247, 0.20); color: var(--purple); }
+        .energy-tag.maxc { background: rgba(224, 82, 82, 0.20); color: var(--red-glow); }
+        .energy-tag.maxp { background: rgba(61, 191, 140, 0.20); color: var(--green-glow); }
+        .energy-empty { text-align: center; padding: 30px 0; color: var(--text3); font-size: 15px; }
+        .update-time { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--text3); padding: 16px; border-top: 1px solid var(--border); margin-top: 20px; }
+        .copy-section { margin-top: 16px; }
+        .copy-row { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+        .copy-label { font-size: 14px; color: var(--text2); min-width: 60px; }
+        .copy-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 10px 14px; color: var(--text); font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+        .copy-btn { background: transparent; border: 1px solid var(--border2); border-radius: 4px; padding: 10px 16px; color: var(--primary-light); font-family: 'JetBrains Mono', monospace; font-size: 14px; cursor: pointer; transition: background 0.15s; }
+        .copy-btn:hover { background: rgba(74, 158, 224, 0.1); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h1>GammaFlow NQ</h1>
+            <span class="header-sub" id="statusText">載入中...</span>
+        </div>
+        <button class="refresh-btn" onclick="loadAll()">⟳ 更新</button>
+    </div>
+    <div class="main-tabs" id="tabBar">
+        <button class="tab active" data-tab="home">首頁</button>
+        <button class="tab" data-tab="chips">籌碼增減</button>
+        <button class="tab" data-tab="cumulative">累計趨勢</button>
+        <button class="tab" data-tab="sr">選擇權壓力表</button>
+    </div>
+    <div id="home" class="section active">
+        <div class="section-title">📋 NQ 關鍵價位</div>
+        <div class="summary-grid">
+            <div class="card"><h3>🔴 最大壓力</h3><div class="big red" id="mResist">-</div><div class="sub" id="mResistOI"></div></div>
+            <div class="card"><h3>🟢 最大支撐</h3><div class="big green" id="mSupport">-</div><div class="sub" id="mSupportOI"></div></div>
+            <div class="card"><h3>⚡ Zero Gamma</h3><div class="big purple" id="mZG">-</div><div class="sub">多空分界</div></div>
+            <div class="card"><h3>📈 NQ 參考價</h3><div class="big" id="mRef">-</div><div class="sub" id="mPos"></div></div>
+        </div>
+        <div class="section-title" style="margin-top:24px;">📊 美股市場總覽</div>
+        <div class="summary-grid" id="marketCards"></div>
+        <div class="card full copy-section" style="margin-top:24px">
+            <h3>GAMMA指標數據</h3>
+            <div class="copy-row"><span class="copy-label">NQ 合併</span><input class="copy-input" id="tvInput" readonly placeholder="載入中..."><button class="copy-btn" onclick="copyTV()">📋 複製</button></div>
+        </div>
+        <div class="update-time" id="updateTime">最後更新：載入中...</div>
+    </div>
+    <div id="chips" class="section">
+        <div class="section-title">📊 每日 Call / Put OI 變化</div>
+        <div class="chart-legend"><span><span class="ld" style="background:#E05252"></span>Call OI 變化</span><span><span class="ld" style="background:#3DBF8C"></span>Put OI 變化</span></div>
+        <div style="height:240px"><canvas id="cChips"></canvas></div>
+        <div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>日期</th><th>總CallOI</th><th>總PutOI</th><th>Call變化</th><th>Put變化</th><th>C/P比</th></tr></thead><tbody id="chipsTbody"></tbody></table></div>
+    </div>
+    <div id="cumulative" class="section">
+        <div class="section-title">📈 累計趨勢（每日累加）</div>
+        <div style="margin-bottom:10px; display:flex; align-items:center; gap:10px;"><span>📅 範圍：</span><select id="cumRange" onchange="buildCumulativeChart()" style="background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:6px 12px; color:var(--text);"><option value="30">30天</option><option value="60" selected>60天</option><option value="90">90天</option></select></div>
+        <div class="chart-legend"><span><span class="ld" style="background:#E05252"></span>累積 Call OI</span><span><span class="ld" style="background:#3DBF8C"></span>累積 Put OI</span></div>
+        <div style="height:240px"><canvas id="cCum"></canvas></div>
+        <div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>日期</th><th>總CallOI</th><th>總PutOI</th><th>Call變化</th><th>Put變化</th><th>累積Call</th><th>累積Put</th></tr></thead><tbody id="cumTbody"></tbody></table></div>
+    </div>
+    <div id="sr" class="section">
+        <div class="notice">📅 NQ 選擇權｜<span style="color:var(--red-glow);">◀ 壓力(Call)</span> ｜ <span style="color:var(--green-glow);">支撐(Put) ▶</span> ｜ 條寬 = 未平倉量 ｜ <span class="energy-tag zg">ZG</span> 多空分界 ｜ <span class="energy-tag maxc">最強壓</span> ｜ <span class="energy-tag maxp">最強撐</span></div>
+        <div id="srRating"></div>
+        <div class="energy-container" id="srList"></div>
+        <div class="update-time" id="srTime"></div>
+    </div>
 
-import os, csv, math, json, time
-from datetime import datetime, timedelta, date, timezone
-from collections import defaultdict
-from playwright.sync_api import sync_playwright
+    <script>
+        const SHEET_ID = "1oPHb8dhDBpoN623zU0zEpC7cuiFLCrzWmvlcZsfSYFM";
+        let DATA = { chips: [], cumulative: [], sr: [], market: null, zg: null, maxCall: null, maxPut: null };
+        const charts = {};
+        const TABS = ['home', 'chips', 'cumulative', 'sr'];
 
-# ---------- 設定 ----------
-SIGMA_SOURCE = "^VXN"
-S_SOURCE     = "^NDX"
-R            = 0.0525
-MULT         = 20
+        function safeNum(s) { const n = parseFloat(String(s || 0).replace(/,/g, '')); return isNaN(n) ? 0 : n; }
+        function fmt(v) { return (v > 0 ? '+' : '') + Math.round(v).toLocaleString(); }
+        function cls(v) { return v > 0 ? 'pos' : v < 0 ? 'neg' : ''; }
 
-SPREADSHEET_ID = "1oPHb8dhDBpoN623zU0zEpC7cuiFLCrzWmvlcZsfSYFM"
-CSV_DOWNLOAD_DIR = "/tmp/nq_csv"
+        async function fetchSheetCSV(name, range = "A1:Z500") {
+            try {
+                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}&range=${range}&_=${Date.now()}`;
+                const r = await fetch(url);
+                return await r.text();
+            } catch (e) { return ''; }
+        }
 
-BARCHART_USER = os.environ.get("BARCHART_USER", "")
-BARCHART_PASS = os.environ.get("BARCHART_PASS", "")
-GOOGLE_CREDS_JSON = os.environ.get("GOOGLE_SHEETS_CREDENTIALS", "{}")
+        function parseCSV(csv) {
+            const lines = csv.trim().split('\n');
+            if (lines.length < 2) return [];
+            const headers = lines[0].split(',');
+            return lines.slice(1).map(line => {
+                const cols = line.split(',');
+                const obj = {};
+                headers.forEach((h, i) => {
+                    const key = h.trim() || `col${i}`;
+                    obj[key] = cols[i] ? cols[i].trim() : '';
+                });
+                return obj;
+            });
+        }
 
-NQ_QUARTER_MAP = {
-    3:  {"code": "H", "name": "mar"},
-    6:  {"code": "M", "name": "jun"},
-    9:  {"code": "U", "name": "sep"},
-    12: {"code": "Z", "name": "dec"},
-}
+        // 验证工作表是否存在
+        async function checkSheetExists(name) {
+            try {
+                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}&range=A1:A1&_=${Date.now()}`;
+                const r = await fetch(url);
+                return r.ok;
+            } catch (e) { return false; }
+        }
 
-# ---------- 輔助函數 ----------
-def get_third_friday(year, month):
-    first_day = datetime(year, month, 1)
-    days_until_friday = (4 - first_day.weekday()) % 7
-    first_friday = first_day + timedelta(days=days_until_friday)
-    return first_friday + timedelta(days=14)
-
-def get_current_nq_contract():
-    tw_now = datetime.now(timezone(timedelta(hours=8)))
-    today = tw_now.date()
-    current_year = tw_now.year
-    for month in [3, 6, 9, 12]:
-        expiry = get_third_friday(current_year, month)
-        if today <= expiry:
-            yr_suffix = str(current_year)[-2:]
-            info = NQ_QUARTER_MAP[month]
-            return {
-                "symbol": f"NQ{info['code']}{yr_suffix}",
-                "month_str": f"{info['name']}-{yr_suffix}",
-                "expiry": expiry.strftime("%Y-%m-%d")
+        async function loadMarket() {
+            const exists = await checkSheetExists("NQ 市場數據");
+            if (!exists) {
+                document.getElementById('marketCards').innerHTML = '<div class="card full"><div class="energy-empty">⏳ NQ 市場數據工作表尚未建立，請等待爬蟲首次執行</div></div>';
+                return;
             }
-    next_year = current_year + 1
-    yr_suffix = str(next_year)[-2:]
-    info = NQ_QUARTER_MAP[3]
-    expiry = get_third_friday(next_year, 3)
-    return {
-        "symbol": f"NQ{info['code']}{yr_suffix}",
-        "month_str": f"{info['name']}-{yr_suffix}",
-        "expiry": expiry.strftime("%Y-%m-%d")
-    }
-
-def is_us_market_open():
-    tw_now = datetime.now(timezone(timedelta(hours=8)))
-    today = tw_now.date()
-    if today.weekday() >= 5:
-        return False
-    return True
-
-# ---------- 1. 下載 CSV ----------
-def download_barchart_csv():
-    local_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nq_options.csv")
-    if os.path.exists(local_csv):
-        print(f"✅ 使用本地 CSV: {local_csv}")
-        return local_csv
-    if not BARCHART_USER or not BARCHART_PASS:
-        raise FileNotFoundError("請上傳 nq_options.csv 或設定 Barchart 帳號")
-    os.makedirs(CSV_DOWNLOAD_DIR, exist_ok=True)
-    contract = get_current_nq_contract()
-    print(f"📅 當前合約: {contract['symbol']}（到期日: {contract['expiry']}）")
-    download_url = (
-        f"https://www.barchart.com/futures/quotes/{contract['symbol']}/"
-        f"options/{contract['month_str']}?futuresOptionsView=merged&moneyness=allRows"
-    )
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(accept_downloads=True)
-        page = context.new_page()
-        page.goto("https://www.barchart.com/login", wait_until="networkidle")
-        page.fill("input[name='email']", BARCHART_USER)
-        page.fill("input[type='password']", BARCHART_PASS)
-        page.click("button[type='submit']")
-        page.wait_for_load_state("networkidle")
-        print("✅ 已登入")
-        try:
-            with page.expect_download(timeout=15000) as download_info:
-                page.goto(download_url)
-            download = download_info.value
-            csv_path = os.path.join(CSV_DOWNLOAD_DIR, "nq_options.csv")
-            download.save_as(csv_path)
-            print(f"✅ CSV 已下載至 {csv_path}")
-            success = True
-        except Exception as e:
-            print(f"❌ 直接下載失敗: {e}")
-            success = False
-        browser.close()
-        if not success:
-            if os.path.exists(local_csv):
-                print("✅ 回退使用本地 CSV")
-                return local_csv
-            raise RuntimeError("自動下載失敗，且無本地 CSV")
-    return csv_path
-
-# ---------- 2. 解析 CSV ----------
-def parse_barchart_csv(file_path):
-    rows = []
-    with open(file_path, 'r', encoding='utf-8') as f:
-        first_line = f.readline()
-        f.seek(0)
-        delimiter = '\t' if '\t' in first_line else ','
-        reader = csv.DictReader(f, delimiter=delimiter)
-        headers = [h.strip() for h in (reader.fieldnames or [])]
-        strike_key = next((h for h in headers if h.lower().startswith('strike')), 'Strike')
-        oi_key = next((h for h in headers if 'open int' in h.lower()), 'Open Int')
-        type_key = next((h for h in headers if h.lower().strip() == 'type'), 'Type')
-        time_key = next((h for h in headers if h.lower().strip() == 'time'), 'Time')
-        for r in reader:
-            strike_str = r.get(strike_key, '')
-            oi_str = r.get(oi_key, '0')
-            typ = r.get(type_key, '')
-            time_str = r.get(time_key, '')
-            if not strike_str: continue
-            is_call = strike_str.endswith('C')
-            is_put = strike_str.endswith('P')
-            if not is_call and not is_put: continue
-            try: strike = float(strike_str[:-1].replace(',', ''))
-            except: continue
-            try: oi = float(oi_str.replace(',', ''))
-            except: oi = 0.0
-            expiry = None
-            if time_str and time_str != '0':
-                try: expiry = datetime.strptime(time_str, '%m/%d/%y')
-                except: pass
-            rows.append({'strike': strike, 'oi': oi, 'type': 'call' if is_call else 'put', 'expiry': expiry})
-    return rows
-
-# ---------- 3. GEX 計算 ----------
-def bs_gamma(S, K, T, sigma):
-    if T <= 0 or S <= 0 or K <= 0 or sigma <= 0: return 0.0
-    d1 = (math.log(S/K) + (R + sigma**2/2)*T) / (sigma * math.sqrt(T))
-    return math.exp(-d1**2/2) / (S * sigma * math.sqrt(T)) / math.sqrt(2*math.pi)
-
-def time_to_expiry(expiry):
-    if not expiry: return 30.0/365.0
-    days = (expiry - datetime.now()).days
-    return max(days, 1) / 365.0
-
-def calc_nq_gex(details, S, sigma):
-    if not details or S is None: return []
-    strike_map = defaultdict(lambda: {"call_oi":0,"put_oi":0,"call_gex":0.0,"put_gex":0.0})
-    for d in details:
-        K = d["strike"]
-        T = time_to_expiry(d["expiry"])
-        gamma = bs_gamma(S, K, T, sigma)
-        if d["type"] == "call":
-            strike_map[K]["call_oi"] += d["oi"]
-            strike_map[K]["call_gex"] += gamma * d["oi"] * MULT * S
-        else:
-            strike_map[K]["put_oi"] += d["oi"]
-            strike_map[K]["put_gex"] += gamma * d["oi"] * MULT * S
-    result = []
-    total_oi = sum(v["call_oi"]+v["put_oi"] for v in strike_map.values())
-    for K, v in strike_map.items():
-        net_gex = v["call_gex"] - v["put_gex"]
-        cp_ratio = round(v["call_oi"]/v["put_oi"], 2) if v["put_oi"] > 0 else 999.0
-        weight = round((v["call_oi"]+v["put_oi"])/total_oi*100, 1) if total_oi > 0 else 0
-        result.append({
-            "履約價": K, "call_oi": v["call_oi"], "put_oi": v["put_oi"],
-            "gex": net_gex, "cp_ratio": cp_ratio, "weight": weight,
-            "is_zero_gamma": False, "is_big_money": weight >= 5.0
-        })
-    sorted_res = sorted(result, key=lambda x: x["履約價"])
-    cum = 0.0; prev_cum = 0.0; zg_strike = None
-    for r in sorted_res:
-        cum += r["gex"]
-        if prev_cum < 0 and cum >= 0 and zg_strike is None:
-            zg_strike = r["履約價"]
-            break
-        prev_cum = cum
-    if zg_strike is None:
-        best_diff = float('inf'); cum = 0.0
-        for r in sorted_res:
-            cum += r["gex"]
-            if abs(cum) < best_diff:
-                best_diff = abs(cum); zg_strike = r["履約價"]
-    for r in result:
-        if r["履約價"] == zg_strike: r["is_zero_gamma"] = True
-    return result
-
-# ---------- 4. 寫入 Google Sheets ----------
-def connect_gsheet():
-    import gspread
-    from google.oauth2.service_account import Credentials
-    creds_dict = json.loads(GOOGLE_CREDS_JSON)
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-    client = gspread.authorize(creds)
-    return client.open_by_key(SPREADSHEET_ID)
-
-def ensure_sheet(sh, name, rows=500, cols=12):
-    try:
-        return sh.worksheet(name)
-    except:
-        return sh.add_worksheet(title=name, rows=rows, cols=cols)
-
-def write_to_sheet(gex_data, tv_string):
-    sh = connect_gsheet()
-    try:
-        ws = sh.worksheet("NQ 合併")
-        ws.clear()
-    except:
-        ws = sh.add_worksheet(title="NQ 合併", rows=500, cols=12)
-    ws.append_row(["📋 NQ 合併 TradingView 數據字串（每天複製 A2 貼到指標）"])
-    ws.append_row([tv_string])
-    ws.append_row([""])
-    ws.append_row(["更新日期","履約價","CallOI","PutOI","GEX","C/P比","佔比%","Zero Gamma","大資金"])
-    tw_now = datetime.now(timezone(timedelta(hours=8)))
-    date_str = tw_now.strftime("%Y/%m/%d")
-    rows = []
-    for d in sorted(gex_data, key=lambda x: x["履約價"], reverse=True):
-        rows.append([
-            date_str,
-            d["履約價"], d["call_oi"], d["put_oi"],
-            d["gex"], d["cp_ratio"], d["weight"],
-            "✅ 多空分界" if d["is_zero_gamma"] else "",
-            "💰 大資金" if d["is_big_money"] else "",
-        ])
-    ws.append_rows(rows)
-    print(f"✅ 已寫入 {len(rows)} 筆至 NQ 合併")
-
-def write_nq_chips_analysis(sh, gex_data, today_str):
-    ws = ensure_sheet(sh, "NQ 籌碼分析", rows=500, cols=10)
-    total_call = sum(d["call_oi"] for d in gex_data)
-    total_put = sum(d["put_oi"] for d in gex_data)
-    cp_ratio = round(total_call / total_put, 2) if total_put > 0 else 0
-    max_call = max(gex_data, key=lambda x: x["call_oi"])
-    max_put = max(gex_data, key=lambda x: x["put_oi"])
-    all_rows = ws.get_all_values()
-    if len(all_rows) > 1:
-        last_row = all_rows[-1]
-        prev_call = int(last_row[1]) if last_row[1] else 0
-        prev_put = int(last_row[2]) if last_row[2] else 0
-    else:
-        prev_call = 0
-        prev_put = 0
-    call_change = total_call - prev_call
-    put_change = total_put - prev_put
-    dates = ws.col_values(1)
-    row_data = [today_str, total_call, total_put, cp_ratio, call_change, put_change,
-                max_call["履約價"], max_call["call_oi"],
-                max_put["履約價"], max_put["put_oi"]]
-    if today_str in dates:
-        idx = dates.index(today_str) + 1
-        ws.update(f"A{idx}:J{idx}", [row_data])
-    else:
-        ws.append_row(row_data)
-    print(f"✅ 已寫入 NQ 籌碼分析")
-
-def write_nq_cumulative(sh, gex_data, today_str):
-    ws = ensure_sheet(sh, "NQ 累計趨勢", rows=500, cols=8)
-    total_call = sum(d["call_oi"] for d in gex_data)
-    total_put = sum(d["put_oi"] for d in gex_data)
-    all_rows = ws.get_all_values()
-    if len(all_rows) > 1:
-        last_row = all_rows[-1]
-        prev_call = int(last_row[1]) if last_row[1] else 0
-        prev_put = int(last_row[2]) if last_row[2] else 0
-        prev_cum_call = int(last_row[5]) if len(last_row) > 5 and last_row[5] else 0
-        prev_cum_put = int(last_row[6]) if len(last_row) > 6 and last_row[6] else 0
-    else:
-        prev_call = 0
-        prev_put = 0
-        prev_cum_call = 0
-        prev_cum_put = 0
-    call_change = total_call - prev_call
-    put_change = total_put - prev_put
-    cum_call = prev_cum_call + call_change
-    cum_put = prev_cum_put + put_change
-    dates = ws.col_values(1)
-    row_data = [today_str, total_call, total_put, call_change, put_change, cum_call, cum_put]
-    if today_str in dates:
-        idx = dates.index(today_str) + 1
-        ws.update(f"A{idx}:G{idx}", [row_data])
-    else:
-        ws.append_row(row_data)
-    print(f"✅ 已寫入 NQ 累計趨勢")
-
-def write_us_market_data(sh, us_data, ndx_close, ndx_change, today_str):
-    ws = ensure_sheet(sh, "NQ 市場數據", rows=100, cols=20)
-    ws.clear()
-    ws.append_row(["日期", "NDX", "NDX漲跌%", "SPX", "SPX漲跌%", "SOX", "SOX漲跌%",
-                   "VIX", "VXN", "AAPL", "AAPL漲跌%", "MSFT", "MSFT漲跌%", "NVDA", "NVDA漲跌%",
-                   "NQ期貨", "NQ期貨漲跌%", "TSM", "TSM漲跌%"])
-    row = [
-        today_str,
-        round(ndx_close, 2), round(ndx_change, 2),
-        us_data.get("SPX", {}).get("close", 0), us_data.get("SPX", {}).get("change_pct", 0),
-        us_data.get("SOX", {}).get("close", 0), us_data.get("SOX", {}).get("change_pct", 0),
-        us_data.get("VIX", {}).get("close", 0),
-        us_data.get("VXN", {}).get("close", 0),
-        us_data.get("AAPL", {}).get("close", 0), us_data.get("AAPL", {}).get("change_pct", 0),
-        us_data.get("MSFT", {}).get("close", 0), us_data.get("MSFT", {}).get("change_pct", 0),
-        us_data.get("NVDA", {}).get("close", 0), us_data.get("NVDA", {}).get("change_pct", 0),
-        us_data.get("NQ_F", {}).get("close", 0), us_data.get("NQ_F", {}).get("change_pct", 0),
-        us_data.get("TSM", {}).get("close", 0), us_data.get("TSM", {}).get("change_pct", 0),
-    ]
-    ws.append_row(row)
-    print(f"✅ 已寫入 NQ 市場數據")
-
-# ---------- 8. 主程式 ----------
-def main():
-    print("=" * 60)
-    print("NQ GEX 全自動爬蟲 v1.5")
-    print("=" * 60)
-
-    if not is_us_market_open():
-        print("⏸️ 今日為美股休市日（週末），跳過爬蟲")
-        return
-
-    csv_path = download_barchart_csv()
-
-    import yfinance as yf
-
-    # 波動率與標的價格
-    sigma = yf.Ticker(SIGMA_SOURCE).history(period="1d")['Close'].iloc[-1]
-    S = yf.Ticker(S_SOURCE).history(period="1d")['Close'].iloc[-1]
-    ndx_open = yf.Ticker(S_SOURCE).history(period="1d")['Open'].iloc[-1]
-    ndx_change = (S - ndx_open) / ndx_open * 100
-    print(f"✅ ^VXN = {sigma:.2f}, ^NDX = {S:.2f} ({ndx_change:+.2f}%)")
-
-    # 美股盤後數據
-    print("\n📊 抓取美股盤後數據...")
-    us_tickers = {
-        "SPX": "^GSPC",
-        "SOX": "^SOX",
-        "VIX": "^VIX",
-        "AAPL": "AAPL",
-        "MSFT": "MSFT",
-        "NVDA": "NVDA",
-        "NQ_F": "NQ=F",
-        "TSM": "TSM",
-    }
-    us_data = {}
-    for name, symbol in us_tickers.items():
-        try:
-            ticker = yf.Ticker(symbol)
-            hist = ticker.history(period="1d")
-            if not hist.empty:
-                close = hist['Close'].iloc[-1]
-                open_price = hist['Open'].iloc[-1]
-                change_pct = (close - open_price) / open_price * 100
-                us_data[name] = {
-                    "close": round(close, 2),
-                    "change_pct": round(change_pct, 2)
+            const csv = await fetchSheetCSV("NQ 市場數據");
+            const rows = parseCSV(csv);
+            if (rows.length === 0) return;
+            DATA.market = rows[rows.length - 1];
+            const items = [
+                { label: 'NDX', val: DATA.market['NDX'] || DATA.market['col1'], chg: DATA.market['NDX漲跌%'] || DATA.market['col2'] },
+                { label: 'SPX', val: DATA.market['SPX'] || DATA.market['col3'], chg: DATA.market['SPX漲跌%'] || DATA.market['col4'] },
+                { label: 'SOX', val: DATA.market['SOX'] || DATA.market['col5'], chg: DATA.market['SOX漲跌%'] || DATA.market['col6'] },
+                { label: 'VIX', val: DATA.market['VIX'] || DATA.market['col7'], chg: null },
+                { label: 'VXN', val: DATA.market['VXN'] || DATA.market['col8'], chg: null },
+                { label: 'AAPL', val: DATA.market['AAPL'] || DATA.market['col9'], chg: DATA.market['AAPL漲跌%'] || DATA.market['col10'] },
+                { label: 'MSFT', val: DATA.market['MSFT'] || DATA.market['col11'], chg: DATA.market['MSFT漲跌%'] || DATA.market['col12'] },
+                { label: 'NVDA', val: DATA.market['NVDA'] || DATA.market['col13'], chg: DATA.market['NVDA漲跌%'] || DATA.market['col14'] },
+                { label: 'NQ期貨', val: DATA.market['NQ期貨'] || DATA.market['col15'], chg: DATA.market['NQ期貨漲跌%'] || DATA.market['col16'] },
+                { label: 'TSM', val: DATA.market['TSM'] || DATA.market['col17'], chg: DATA.market['TSM漲跌%'] || DATA.market['col18'] }
+            ];
+            let html = '';
+            items.forEach(item => {
+                const val = safeNum(item.val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                let chgHtml = '';
+                if (item.chg !== null && item.chg !== undefined && item.chg !== '') {
+                    const chgVal = parseFloat(item.chg);
+                    if (!isNaN(chgVal)) {
+                        const chgClass = chgVal >= 0 ? 'pos' : 'neg';
+                        chgHtml = `<div class="sub ${chgClass}">${chgVal >= 0 ? '+' : ''}${chgVal.toFixed(2)}%</div>`;
+                    }
                 }
-                print(f"  {name}: {close:.2f} ({change_pct:+.2f}%)")
-        except Exception as e:
-            print(f"  ⚠️ {name} 抓取失敗: {e}")
-            us_data[name] = {"close": 0, "change_pct": 0}
-    us_data["VXN"] = {"close": round(sigma, 2), "change_pct": 0}
+                html += `<div class="card"><h3>${item.label}</h3><div class="big">${val}</div>${chgHtml}</div>`;
+            });
+            document.getElementById('marketCards').innerHTML = html;
+            document.getElementById('mRef').textContent = safeNum(DATA.market['NDX'] || DATA.market['col1'] || 0).toLocaleString();
+        }
 
-    # 解析 CSV + 計算 GEX
-    details = parse_barchart_csv(csv_path)
-    print(f"✅ 解析 {len(details)} 筆明細")
-    if len(details) < 50:
-        print(f"❌ 數據量異常（僅 {len(details)} 筆），可能是 Barchart 尚未更新，跳過寫入")
-        return
-    gex_data = calc_nq_gex(details, S, sigma)
-    if not gex_data:
-        print("❌ GEX 計算失敗，跳過寫入")
-        return
+        async function loadChips() {
+            const exists = await checkSheetExists("NQ 籌碼分析");
+            if (!exists) return;
+            const csv = await fetchSheetCSV("NQ 籌碼分析");
+            DATA.chips = parseCSV(csv);
+            if (DATA.chips.length > 0) {
+                const last = DATA.chips[DATA.chips.length - 1];
+                const maxCallPrice = safeNum(last['最大壓力價'] || last['col6']);
+                const maxCallOI = safeNum(last['最大壓力OI'] || last['col7']);
+                const maxPutPrice = safeNum(last['最大支撐價'] || last['col8']);
+                const maxPutOI = safeNum(last['最大支撐OI'] || last['col9']);
+                document.getElementById('mResist').textContent = maxCallPrice.toLocaleString();
+                document.getElementById('mResistOI').textContent = `Call ${Math.round(maxCallOI/1000)}K 口`;
+                document.getElementById('mSupport').textContent = maxPutPrice.toLocaleString();
+                document.getElementById('mSupportOI').textContent = `Put ${Math.round(maxPutOI/1000)}K 口`;
+                DATA.maxCall = { strike: maxCallPrice, oi: maxCallOI };
+                DATA.maxPut = { strike: maxPutPrice, oi: maxPutOI };
+            }
+            const tb = document.getElementById('chipsTbody');
+            tb.innerHTML = '';
+            [...DATA.chips].reverse().slice(0, 30).forEach(r => {
+                const tr = document.createElement('tr');
+                const d = r['日期'] || r['col0'] || '';
+                const tc = safeNum(r['總CallOI'] || r['col1']).toLocaleString();
+                const tp = safeNum(r['總PutOI'] || r['col2']).toLocaleString();
+                const cc = fmt(safeNum(r['Call變化'] || r['col4']));
+                const pc = fmt(safeNum(r['Put變化'] || r['col5']));
+                const cp = parseFloat(r['C/P比'] || r['col3'] || 0).toFixed(2);
+                tr.innerHTML = `<td>${d}</td><td>${tc}</td><td>${tp}</td><td class="${cls(safeNum(r['Call變化'] || r['col4']))}">${cc}</td><td class="${cls(safeNum(r['Put變化'] || r['col5']))}">${pc}</td><td>${cp}</td>`;
+                tb.appendChild(tr);
+            });
+            buildChipsChart();
+        }
 
-    top_call = sorted(gex_data, key=lambda x: x["call_oi"], reverse=True)[0]
-    top_put  = sorted(gex_data, key=lambda x: x["put_oi"], reverse=True)[0]
-    zg_row = next((r for r in gex_data if r["is_zero_gamma"]), None)
-    print(f"  最大壓力: {top_call['履約價']} (Call OI {top_call['call_oi']:,})")
-    print(f"  最大支撐: {top_put['履約價']} (Put OI {top_put['put_oi']:,})")
-    if zg_row: print(f"  Zero Gamma: {zg_row['履約價']}")
+        async function loadCumulative() {
+            const exists = await checkSheetExists("NQ 累計趨勢");
+            if (!exists) return;
+            const csv = await fetchSheetCSV("NQ 累計趨勢");
+            DATA.cumulative = parseCSV(csv);
+            const tb = document.getElementById('cumTbody');
+            tb.innerHTML = '';
+            [...DATA.cumulative].reverse().slice(0, 60).forEach(r => {
+                const tr = document.createElement('tr');
+                const d = r['日期'] || r['col0'] || '';
+                const tc = safeNum(r['總CallOI'] || r['col1']).toLocaleString();
+                const tp = safeNum(r['總PutOI'] || r['col2']).toLocaleString();
+                const cc = fmt(safeNum(r['Call變化'] || r['col3']));
+                const pc = fmt(safeNum(r['Put變化'] || r['col4']));
+                const cumc = fmt(safeNum(r['累積Call'] || r['col5']));
+                const cump = fmt(safeNum(r['累積Put'] || r['col6']));
+                tr.innerHTML = `<td>${d}</td><td>${tc}</td><td>${tp}</td><td class="${cls(safeNum(r['Call變化'] || r['col3']))}">${cc}</td><td class="${cls(safeNum(r['Put變化'] || r['col4']))}">${pc}</td><td class="${cls(safeNum(r['累積Call'] || r['col5']))}">${cumc}</td><td class="${cls(safeNum(r['累積Put'] || r['col6']))}">${cump}</td>`;
+                tb.appendChild(tr);
+            });
+            buildCumulativeChart();
+        }
 
-    tv_string = ";".join([f"{d['履約價']},{d['call_oi']},{d['put_oi']},{d['gex']:.2f},{d['cp_ratio']},{1 if d['is_zero_gamma'] else 0}"
-                          for d in sorted(gex_data, key=lambda x: x["履約價"], reverse=True)])
+        function buildRatingTable() {
+            const spot = safeNum(DATA.market ? (DATA.market['NDX'] || DATA.market['col1']) : 0);
+            if (!spot || !DATA.sr.length) { document.getElementById('srRating').innerHTML = ''; return; }
+            let above = [], below = [];
+            DATA.sr.forEach(r => {
+                const strike = safeNum(r['履約價'] || r['col1']);
+                const callOI = safeNum(r['CallOI'] || r['col2']);
+                const putOI = safeNum(r['PutOI'] || r['col3']);
+                const dist = strike - spot;
+                if (dist > 0) above.push({ strike, callOI, putOI, dist });
+                else if (dist < 0) below.push({ strike, callOI, putOI, dist: Math.abs(dist) });
+            });
+            above.sort((a, b) => a.dist - b.dist);
+            below.sort((a, b) => a.dist - b.dist);
+            const topP = above.slice(0, 3);
+            const topS = below.slice(0, 3);
+            const sc = DATA.maxCall ? DATA.maxCall.strike : null;
+            const sp = DATA.maxPut ? DATA.maxPut.strike : null;
+            let html = '<div style="margin: 16px 0; background: var(--bg2); border-radius: 4px; padding: 12px 16px; border-left: 3px solid var(--primary-light);"><div style="font-weight:700; color:var(--primary-light); margin-bottom:8px;">📋 壓力支撐評級表</div><table class="rating-table">';
+            topP.forEach(p => {
+                const isStrong = p.strike === sc;
+                const label = isStrong ? '🔵 強壓' : '🔹 壓力';
+                const pct = ((p.dist / spot) * 100).toFixed(1);
+                const oiD = p.callOI >= 1000 ? (p.callOI / 1000).toFixed(1) + 'K' : p.callOI;
+                html += `<tr><td class="pressure ${isStrong ? 'strong' : ''}">${label} ${p.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right; color:var(--text2);">距現貨 +${pct}%</td></tr>`;
+            });
+            html += `<tr class="spot-row"><td>─── 現貨約 ${spot.toLocaleString()} ───</td><td></td></tr>`;
+            topS.forEach(s => {
+                const isStrong = s.strike === sp;
+                const label = isStrong ? '🟢 強撐' : '🟩 支撐';
+                const pct = ((s.dist / spot) * 100).toFixed(1);
+                const oiD = s.putOI >= 1000 ? (s.putOI / 1000).toFixed(1) + 'K' : s.putOI;
+                html += `<tr><td class="support ${isStrong ? 'strong' : ''}">${label} ${s.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right; color:var(--text2);">距現貨 -${pct}%</td></tr>`;
+            });
+            html += '</table></div>';
+            document.getElementById('srRating').innerHTML = html;
+        }
 
-    tw_now = datetime.now(timezone(timedelta(hours=8)))
-    today_str = tw_now.strftime("%Y/%m/%d")
+        async function loadSR() {
+            const csv = await fetchSheetCSV("NQ 合併");
+            const rows = parseCSV(csv);
+            DATA.sr = rows.filter(r => safeNum(r['履約價'] || r['col1']) > 0);
+            const zgRow = DATA.sr.find(r => String(r['Zero Gamma'] || r['col7'] || '').includes('分界'));
+            DATA.zg = zgRow ? safeNum(zgRow['履約價'] || zgRow['col1']) : null;
+            if (DATA.zg) {
+                document.getElementById('mZG').textContent = DATA.zg.toLocaleString();
+                const refPrice = safeNum(DATA.market ? (DATA.market['NDX'] || DATA.market['col1']) : 0);
+                document.getElementById('mPos').textContent = refPrice > DATA.zg ? '🟢 偏多區' : '🔴 偏空區';
+            }
+            buildSRBars();
+            buildRatingTable();
+        }
 
-    sh = connect_gsheet()
-    write_to_sheet(gex_data, tv_string)
-    write_nq_chips_analysis(sh, gex_data, today_str)
-    write_nq_cumulative(sh, gex_data, today_str)
-    write_us_market_data(sh, us_data, S, ndx_change, today_str)
+        function buildSRBars() {
+            const div = document.getElementById('srList');
+            if (!DATA.sr.length) { div.innerHTML = '<div class="energy-empty">📭 尚無資料</div>'; return; }
+            const sorted = [...DATA.sr].sort((a, b) => safeNum(b['履約價'] || b['col1']) - safeNum(a['履約價'] || a['col1']));
+            const maxTotal = Math.max(1, ...sorted.map(r => safeNum(r['CallOI'] || r['col2']) + safeNum(r['PutOI'] || r['col3'])));
+            let html = '';
+            sorted.forEach((r, idx) => {
+                const strike = safeNum(r['履約價'] || r['col1']);
+                const c = safeNum(r['CallOI'] || r['col2']);
+                const p = safeNum(r['PutOI'] || r['col3']);
+                const cPct = Math.max(3, (c / maxTotal) * 100);
+                const pPct = Math.max(3, (p / maxTotal) * 100);
+                const isZG = DATA.zg === strike;
+                const isMaxC = DATA.maxCall && DATA.maxCall.strike === strike;
+                const isMaxP = DATA.maxPut && DATA.maxPut.strike === strike;
+                let rc = 'energy-row';
+                if (isZG) rc += ' is-zg';
+                if (isMaxC) rc += ' is-maxc';
+                if (isMaxP) rc += ' is-maxp';
+                let tags = '';
+                if (isZG) tags += '<span class="energy-tag zg">ZG</span>';
+                if (isMaxC) tags += '<span class="energy-tag maxc">最強壓</span>';
+                if (isMaxP) tags += '<span class="energy-tag maxp">最強撐</span>';
+                const cD = c >= 1000 ? (c / 1000).toFixed(1) + 'K' : String(c);
+                const pD = p >= 1000 ? (p / 1000).toFixed(1) + 'K' : String(p);
+                html += `<div class="${rc}"><div class="energy-left"><div class="bar-track"><div class="bar-fill" style="width:${cPct}%;">${c > 0 ? `<span class="bar-value">${cD}</span>` : ''}</div></div></div><div class="energy-center"><span class="energy-price">${strike.toLocaleString()}</span>${tags ? `<div class="energy-tags">${tags}</div>` : ''}</div><div class="energy-right"><div class="bar-track"><div class="bar-fill" style="width:${pPct}%;">${p > 0 ? `<span class="bar-value">${pD}</span>` : ''}</div></div></div></div>`;
+            });
+            div.innerHTML = html;
+        }
 
-    print("\n✅ 全部完成！")
+        function buildChipsChart() {
+            if (!DATA.chips.length) return;
+            const data = DATA.chips.slice(-30);
+            const labels = data.map(r => r['日期'] || r['col0'] || '');
+            if (charts.cChips) charts.cChips.destroy();
+            charts.cChips = new Chart(document.getElementById('cChips').getContext('2d'), {
+                type: 'line', data: { labels, datasets: [
+                    { label: 'Call OI 變化', data: data.map(r => safeNum(r['Call變化'] || r['col4'])), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
+                    { label: 'Put OI 變化', data: data.map(r => safeNum(r['Put變化'] || r['col5'])), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
+                ]},
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 } } }, y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+            });
+        }
 
-if __name__ == "__main__":
-    main()
+        function buildCumulativeChart() {
+            if (!DATA.cumulative.length) return;
+            const range = parseInt(document.getElementById('cumRange').value || 60);
+            const data = DATA.cumulative.slice(-range);
+            const labels = data.map(r => r['日期'] || r['col0'] || '');
+            if (charts.cCum) charts.cCum.destroy();
+            charts.cCum = new Chart(document.getElementById('cCum').getContext('2d'), {
+                type: 'line', data: { labels, datasets: [
+                    { label: '累積 Call OI', data: data.map(r => safeNum(r['累積Call'] || r['col5'])), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
+                    { label: '累積 Put OI', data: data.map(r => safeNum(r['累積Put'] || r['col6'])), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
+                ]},
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 } } }, y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+            });
+        }
+
+        async function loadTVString() {
+            const csv = await fetchSheetCSV("NQ 合併", "A2:A2");
+            document.getElementById('tvInput').value = csv.replace(/"/g, '').trim();
+        }
+
+        async function copyTV() {
+            const input = document.getElementById('tvInput');
+            try {
+                await navigator.clipboard.writeText(input.value);
+                const btn = document.querySelector('.copy-btn');
+                btn.textContent = '✅ 已複製';
+                setTimeout(() => { btn.textContent = '📋 複製'; }, 1500);
+            } catch (e) {
+                input.select();
+                document.execCommand('copy');
+            }
+        }
+
+        function switchTab(id) {
+            TABS.forEach(t => {
+                const sec = document.getElementById(t);
+                if (sec) sec.classList.remove('active');
+            });
+            const target = document.getElementById(id);
+            if (target) target.classList.add('active');
+            document.querySelectorAll('#tabBar .tab').forEach(t => t.classList.remove('active'));
+            const tabBtn = document.querySelector(`#tabBar .tab[data-tab="${id}"]`);
+            if (tabBtn) tabBtn.classList.add('active');
+            if (id === 'cumulative') buildCumulativeChart();
+            if (id === 'chips') buildChipsChart();
+        }
+
+        document.getElementById('tabBar').addEventListener('click', function(e) {
+            const tab = e.target.closest('.tab');
+            if (!tab) return;
+            const id = tab.getAttribute('data-tab');
+            if (id) switchTab(id);
+        });
+
+        async function loadAll() {
+            document.getElementById('statusText').textContent = '更新中...';
+            try {
+                await Promise.all([loadMarket(), loadChips(), loadCumulative(), loadSR(), loadTVString()]);
+                const now = new Date().toLocaleString('zh-TW', { hour12: false });
+                document.getElementById('updateTime').textContent = `最後更新：${now}`;
+                document.getElementById('srTime').textContent = `最後更新：${now}`;
+                document.getElementById('statusText').textContent = '✅ 每日 07:00 自動更新';
+            } catch (e) {
+                document.getElementById('statusText').textContent = '❌ 更新失敗';
+            }
+        }
+
+        loadAll();
+    </script>
+</body>
+</html>
