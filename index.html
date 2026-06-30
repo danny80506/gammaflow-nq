@@ -7,7 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #4A9EE0; --primary-light: #6BB5F0; --primary-dim: #2A6EA0; --red: #E05252; --green: #3DBF8C; --bg: #111318; --bg2: #181C23; --bg3: #1E232D; --border: rgba(74,158,224,0.15); --border2: rgba(74,158,224,0.3); --text: #F0ECE6; --text2: #ADA89A; --text3: #6B655C; --purple: #b085f5; }
+        :root { --primary: #4A9EE0; --primary-light: #6BB5F0; --red: #E05252; --green: #3DBF8C; --bg: #111318; --bg2: #181C23; --bg3: #1E232D; --border: rgba(74,158,224,0.15); --border2: rgba(74,158,224,0.3); --text: #F0ECE6; --text2: #ADA89A; --text3: #6B655C; --purple: #b085f5; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); font-size: 16px; padding-bottom: 20px; }
         .header { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg2); }
@@ -113,95 +113,123 @@
         function cls(v) { return v > 0 ? 'pos' : v < 0 ? 'neg' : ''; }
 
         async function fetchRawCSV(name, range = "A1:Z500") {
-            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}&range=${range}&_=${Date.now()}`;
-            const r = await fetch(url);
-            if (!r.ok) return '';
-            return await r.text();
+            try {
+                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}&range=${range}&_=${Date.now()}`;
+                const r = await fetch(url);
+                if (!r.ok) return '';
+                return await r.text();
+            } catch(e) { return ''; }
         }
 
         function csvToRows(csv) {
+            if (!csv || !csv.trim()) return [];
             return csv.trim().split('\n').filter(l => l.trim()).map(l => l.split(',').map(c => c.replace(/^"|"$/g, '').trim()));
         }
 
-        // ========== 市場數據 ==========
+        // ========== 市場數據 (NQ 市場數據工作表不存在時顯示提示) ==========
         async function loadMarket() {
             const csv = await fetchRawCSV("NQ 市場數據");
             const rows = csvToRows(csv);
-            if (rows.length < 2) {
-                document.getElementById('marketCards').innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;color:var(--text3);">⏳ 美股市場數據尚未就緒</div>';
+            
+            // 檢查是否真的讀到了市場數據 (第一行應該是表頭，且第一列是"日期")
+            if (rows.length < 2 || !rows[0][0].includes('日期')) {
+                document.getElementById('marketCards').innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;color:var(--text3);">⏳ 美股市場數據尚未就緒，等待爬蟲寫入</div>';
+                document.getElementById('mRef').textContent = '-';
+                DATA.market = { ndx: 0 };
                 return;
             }
+            
             const last = rows[rows.length - 1];
             DATA.market = { ndx: safeNum(last[1]) };
-            document.getElementById('mRef').textContent = DATA.market.ndx.toLocaleString();
+            document.getElementById('mRef').textContent = DATA.market.ndx > 0 ? DATA.market.ndx.toLocaleString() : '-';
+            
             const items = [
                 ['NDX',1,2],['SPX',3,4],['SOX',5,6],['VIX',7,null],['VXN',8,null],
                 ['AAPL',9,10],['MSFT',11,12],['NVDA',13,14],['NQ期貨',15,16],['TSM',17,18]
             ];
             document.getElementById('marketCards').innerHTML = items.map(([lb, vi, ci]) => {
                 const v = safeNum(last[vi]).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2});
-                let c = ''; if (ci && last[ci]) { const cv = parseFloat(last[ci]); if (!isNaN(cv) && cv !== 0) c = `<div class="sub ${cv>0?'pos':'neg'}">${cv>0?'+':''}${cv.toFixed(2)}%</div>`; }
+                let c = ''; 
+                if (ci && last[ci]) { 
+                    const cv = parseFloat(last[ci]); 
+                    if (!isNaN(cv) && cv !== 0) c = `<div class="sub ${cv>0?'pos':'neg'}">${cv>0?'+':''}${cv.toFixed(2)}%</div>`; 
+                }
                 return `<div class="card"><h3>${lb}</h3><div class="big">${v}</div>${c}</div>`;
             }).join('');
         }
 
-        // ========== 籌碼分析 ==========
+        // ========== 籌碼分析 (沒有表頭，直接從第1行讀數據) ==========
         async function loadChips() {
             const csv = await fetchRawCSV("NQ 籌碼分析");
             const rows = csvToRows(csv);
-            if (rows.length < 2) return;
-            DATA.chips = rows.slice(1).map(r => ({
-                date: r[0], totalCall: safeNum(r[1]), totalPut: safeNum(r[2]), cpRatio: parseFloat(r[3])||0,
+            if (rows.length < 1) return;
+            
+            // 關鍵修正：NQ 籌碼分析沒有表頭，第1行就是數據
+            // 數據格式: 日期, 總CallOI, 總PutOI, C/P比, Call變化, Put變化, 最大壓力價, 最大壓力OI, 最大支撐價, 最大支撐OI
+            DATA.chips = rows.map(r => ({
+                date: r[0],
+                totalCall: safeNum(r[1]), totalPut: safeNum(r[2]), cpRatio: parseFloat(r[3])||0,
                 callChange: safeNum(r[4]), putChange: safeNum(r[5]),
                 maxCallPrice: safeNum(r[6]), maxCallOI: safeNum(r[7]),
                 maxPutPrice: safeNum(r[8]), maxPutOI: safeNum(r[9])
             }));
-            const last = DATA.chips[DATA.chips.length - 1];
-            if (last) {
-                document.getElementById('mResist').textContent = last.maxCallPrice.toLocaleString();
-                document.getElementById('mResistOI').textContent = `Call ${Math.round(last.maxCallOI/1000)}K 口`;
-                document.getElementById('mSupport').textContent = last.maxPutPrice.toLocaleString();
-                document.getElementById('mSupportOI').textContent = `Put ${Math.round(last.maxPutOI/1000)}K 口`;
+            
+            if (DATA.chips.length > 0) {
+                const last = DATA.chips[DATA.chips.length - 1];
+                document.getElementById('mResist').textContent = last.maxCallPrice > 0 ? last.maxCallPrice.toLocaleString() : '-';
+                document.getElementById('mResistOI').textContent = last.maxCallOI > 0 ? `Call ${Math.round(last.maxCallOI/1000)}K 口` : '';
+                document.getElementById('mSupport').textContent = last.maxPutPrice > 0 ? last.maxPutPrice.toLocaleString() : '-';
+                document.getElementById('mSupportOI').textContent = last.maxPutOI > 0 ? `Put ${Math.round(last.maxPutOI/1000)}K 口` : '';
                 DATA.maxCall = { strike: last.maxCallPrice, oi: last.maxCallOI };
                 DATA.maxPut = { strike: last.maxPutPrice, oi: last.maxPutOI };
             }
+            
             document.getElementById('chipsTbody').innerHTML = [...DATA.chips].reverse().slice(0,30).map(r =>
                 `<tr><td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td>${r.cpRatio.toFixed(2)}</td></tr>`
             ).join('');
             buildChipsChart();
         }
 
-        // ========== 累計趨勢 ==========
+        // ========== 累計趨勢 (可能也沒有表頭) ==========
         async function loadCumulative() {
             const csv = await fetchRawCSV("NQ 累計趨勢");
             const rows = csvToRows(csv);
-            if (rows.length < 2) return;
-            DATA.cumulative = rows.slice(1).map(r => ({
+            if (rows.length < 1) return;
+            
+            // 修正：直接讀取，不跳過表頭
+            DATA.cumulative = rows.map(r => ({
                 date: r[0], totalCall: safeNum(r[1]), totalPut: safeNum(r[2]),
                 callChange: safeNum(r[3]), putChange: safeNum(r[4]),
                 cumCall: safeNum(r[5]), cumPut: safeNum(r[6])
             }));
+            
             document.getElementById('cumTbody').innerHTML = [...DATA.cumulative].reverse().slice(0,60).map(r =>
                 `<tr><td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td>${fmt(r.cumCall)}</td><td>${fmt(r.cumPut)}</td></tr>`
             ).join('');
             buildCumulativeChart();
         }
 
-        // ========== 選擇權合併 ==========
+        // ========== 選擇權合併 (NQ 合併有固定結構) ==========
         async function loadSR() {
             const csv = await fetchRawCSV("NQ 合併");
             const rows = csvToRows(csv);
+            if (rows.length < 5) return;
+            
+            // NQ 合併結構: A1=標題, A2=TV字串, A3=空行, A4=表頭, A5+=數據
             const dataRows = rows.slice(4);
             DATA.sr = dataRows.map(r => ({
                 strike: safeNum(r[1]), callOI: safeNum(r[2]), putOI: safeNum(r[3]),
                 zgFlag: r[7] && r[7].includes('分界')
             })).filter(r => r.strike > 0);
+            
             const zgRow = DATA.sr.find(r => r.zgFlag);
             DATA.zg = zgRow ? zgRow.strike : null;
             if (DATA.zg) {
                 document.getElementById('mZG').textContent = DATA.zg.toLocaleString();
                 const ref = DATA.market ? DATA.market.ndx : 0;
-                document.getElementById('mPos').textContent = ref > DATA.zg ? '🟢 偏多區' : ref < DATA.zg ? '🔴 偏空區' : '';
+                if (ref > 0) {
+                    document.getElementById('mPos').textContent = ref > DATA.zg ? '🟢 偏多區' : ref < DATA.zg ? '🔴 偏空區' : '⚪ ZG附近';
+                }
             }
             buildSRBars();
             buildRatingTable();
@@ -210,26 +238,36 @@
         function buildRatingTable() {
             const spot = DATA.market ? DATA.market.ndx : 0;
             if (!spot || !DATA.sr.length) { document.getElementById('srRating').innerHTML = ''; return; }
+            
             let above = [], below = [];
             DATA.sr.forEach(r => {
                 const d = r.strike - spot;
                 if (d > 0) above.push({...r, dist: d});
                 else if (d < 0) below.push({...r, dist: Math.abs(d)});
             });
-            above.sort((a,b) => a.dist - b.dist); below.sort((a,b) => a.dist - b.dist);
-            const topP = above.slice(0,3), topS = below.slice(0,3);
+            above.sort((a,b) => a.dist - b.dist);
+            below.sort((a,b) => a.dist - b.dist);
+            
+            const topP = above.slice(0, 3), topS = below.slice(0, 3);
             const sc = DATA.maxCall ? DATA.maxCall.strike : null;
             const sp = DATA.maxPut ? DATA.maxPut.strike : null;
+            
             let h = '<div style="margin:16px 0;background:var(--bg2);border-radius:4px;padding:12px 16px;border-left:3px solid var(--primary-light);"><div style="font-weight:700;color:var(--primary-light);margin-bottom:8px;">📋 壓力支撐評級表</div><table class="rating-table">';
+            
             topP.forEach(p => {
+                const isStrong = p.strike === sc;
                 const oiD = p.callOI >= 1000 ? (p.callOI/1000).toFixed(1)+'K' : p.callOI;
-                h += `<tr><td class="pressure">${p.strike===sc?'🔵 強壓':'🔹 壓力'} ${p.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 +${((p.dist/spot)*100).toFixed(1)}%</td></tr>`;
+                h += `<tr><td class="pressure">${isStrong?'🔵 強壓':'🔹 壓力'} ${p.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 +${((p.dist/spot)*100).toFixed(1)}%</td></tr>`;
             });
+            
             h += `<tr class="spot-row"><td>─── 現貨約 ${spot.toLocaleString()} ───</td><td></td></tr>`;
+            
             topS.forEach(s => {
+                const isStrong = s.strike === sp;
                 const oiD = s.putOI >= 1000 ? (s.putOI/1000).toFixed(1)+'K' : s.putOI;
-                h += `<tr><td class="support">${s.strike===sp?'🟢 強撐':'🟩 支撐'} ${s.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 -${((s.dist/spot)*100).toFixed(1)}%</td></tr>`;
+                h += `<tr><td class="support">${isStrong?'🟢 強撐':'🟩 支撐'} ${s.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 -${((s.dist/spot)*100).toFixed(1)}%</td></tr>`;
             });
+            
             h += '</table></div>';
             document.getElementById('srRating').innerHTML = h;
         }
