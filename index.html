@@ -198,7 +198,7 @@
             buildCumulativeChart();
         }
 
-        // ========== 選擇權合併 (ZG 在第8列，0/1 標記) ==========
+        // ========== 選擇權合併 (修正 ZG 讀取：直接檢查文字) ==========
         async function loadSR() {
             const csv = await fetchRawCSV("NQ 合併");
             const rows = csvToRows(csv);
@@ -206,9 +206,9 @@
             const dataRows = rows.slice(4);
             DATA.sr = dataRows.map(r => ({
                 strike: safeNum(r[1]), callOI: safeNum(r[2]), putOI: safeNum(r[3]),
-                zgVal: safeNum(r[7])
+                isZG: (r[7] || '').includes('分界')   // ← 核心修正
             })).filter(r => r.strike > 0);
-            const zgRow = DATA.sr.find(r => r.zgVal === 1);
+            const zgRow = DATA.sr.find(r => r.isZG);
             DATA.zg = zgRow ? zgRow.strike : null;
             if (DATA.zg) {
                 document.getElementById('mZG').textContent = DATA.zg.toLocaleString();
@@ -225,7 +225,6 @@
         }
 
         function buildRatingTable() {
-            // 現貨參考價：優先 NDX，否則取履約價中位數
             let spot = DATA.market && DATA.market.ndx > 0 ? DATA.market.ndx : null;
             if (!spot && DATA.sr.length > 0) {
                 const strikes = DATA.sr.map(r => r.strike).sort((a,b) => a - b);
