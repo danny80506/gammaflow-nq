@@ -3,578 +3,310 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <title>GammaFlow NQ · 選擇權籌碼</title>
+    <title>GammaFlow NQ · 那斯達克選擇權儀表板</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        /* ===== 全域變數 (NQ 藍色主題) ===== */
-        :root {
-            --primary: #4A9EE0;
-            --primary-light: #6BB5F0;
-            --primary-dim: #2A5A80;
-            --red: #E05252;
-            --red-glow: #ff6b6b;
-            --green: #3DBF8C;
-            --green-glow: #5cdba3;
-            --blue: #4A9EE0;
-            --bg: #111318;
-            --bg2: #181C23;
-            --bg3: #1E232D;
-            --bg4: #242A36;
-            --border: rgba(74, 158, 224, 0.15);
-            --border2: rgba(74, 158, 224, 0.3);
-            --text: #F0ECE6;
-            --text2: #ADA89A; 
-            --text3: #6B655C;
-            --purple: #b085f5;
-            --amber: #d2991d;
-            --orange: #f0883e;
-            --yellow: #e3b341;
-            --card-radius: 6px;
-            --bar-height: 22px;
-        }
-
+        :root { --primary: #4A9EE0; --primary-light: #6BB5F0; --primary-dim: #2A6EA0; --red: #E05252; --green: #3DBF8C; --bg: #111318; --bg2: #181C23; --bg3: #1E232D; --border: rgba(74,158,224,0.15); --border2: rgba(74,158,224,0.3); --text: #F0ECE6; --text2: #ADA89A; --text3: #6B655C; --purple: #b085f5; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Noto Sans TC', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            font-size: 16px;
-            padding-bottom: 20px;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .header {
-            padding: 14px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid var(--border);
-            background: var(--bg2);
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .header-left { display: flex; align-items: center; gap: 12px; }
-        .header h1 {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 22px;
-            font-weight: 600;
-            color: var(--primary-light);
-            letter-spacing: 1.5px;
-        }
+        body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); font-size: 16px; padding-bottom: 20px; }
+        .header { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg2); }
+        .header h1 { font-family: 'JetBrains Mono', monospace; font-size: 22px; color: var(--primary-light); }
         .header-sub { font-size: 12px; color: var(--text2); }
-        .refresh-btn {
-            background: transparent;
-            border: 1px solid var(--border2);
-            border-radius: 4px;
-            padding: 6px 14px;
-            cursor: pointer;
-            color: var(--primary-light);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            transition: background 0.15s;
-        }
-        .refresh-btn:hover { background: rgba(74, 158, 224, 0.08); }
-
-        .section { padding: 20px; }
-        .section-title {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text2);
-            margin: 12px 0 10px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 14px;
-            margin-bottom: 20px;
-        }
-        .card {
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 18px;
-        }
-        .card h3 {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            color: var(--text3);
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-        }
-        .card .big {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 30px;
-            font-weight: 700;
-        }
+        .refresh-btn { background: transparent; border: 1px solid var(--border2); border-radius: 4px; padding: 6px 14px; cursor: pointer; color: var(--primary-light); font-size: 13px; }
+        .main-tabs { display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto; border-bottom: 1px solid var(--border); }
+        .main-tabs .tab { padding: 8px 18px; font-family: 'JetBrains Mono', monospace; font-size: 14px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: transparent; color: var(--text2); white-space: nowrap; }
+        .main-tabs .tab.active { background: rgba(74,158,224,0.12); color: var(--primary-light); border-color: var(--border2); }
+        .section { display: none; padding: 16px; }
+        .section.active { display: block; }
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 18px; }
+        .card h3 { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text3); margin-bottom: 8px; }
+        .card .big { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; }
         .card .sub { font-size: 13px; color: var(--text2); margin-top: 6px; }
-        .red { color: var(--red); }
-        .green { color: var(--green); }
-        .blue { color: var(--blue); }
-        .purple { color: var(--purple); }
-        .nq-primary { color: var(--primary-light); }
-
-        /* ── 分析卡片 ── */
-        .analysis-card {
-            border-left: 4px solid var(--primary);
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .analysis-card h3 {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 15px;
-            color: var(--primary-light);
-            letter-spacing: 1px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .analysis-item {
-            font-size: 14px;
-            padding: 6px 0;
-            line-height: 1.6;
-            color: var(--text2);
-        }
-        .analysis-tag {
-            display: inline-block;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 2px;
-            margin-right: 6px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-        .tag-bull { background: rgba(61, 191, 140, 0.15); color: #86efac; }
-        .tag-bear { background: rgba(248, 81, 73, 0.15); color: #fca5a5; }
-        .tag-info { background: rgba(74, 158, 224, 0.15); color: #93c5fd; }
-
-        /* ── 图例 ── */
-        .legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 14px;
-            font-size: 13px;
-            color: var(--text2);
-            margin-bottom: 14px;
-            padding: 10px 14px;
-            background: var(--bg3);
-            border-radius: 4px;
-        }
-        .legend span { display: flex; align-items: center; gap: 6px; }
-        .legend-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
-        .legend-dot.red { background: var(--red); }
-        .legend-dot.green { background: var(--green); }
-        .legend-dot.purple { background: var(--purple); }
-        .legend-dot.gold { background: var(--amber); }
-
-        /* ── 使用提示 / 數據說明 ── */
-        .info-box {
-            font-size: 13px;
-            color: var(--text3);
-            padding: 14px 16px;
-            background: var(--bg3);
-            border-radius: 4px;
-            margin-top: 20px;
-            line-height: 1.8;
-            border-left: 2px solid var(--border2);
-        }
-        .info-box strong { color: var(--primary-light); }
-        .info-box h4 {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            color: var(--primary-light);
-            margin-bottom: 8px;
-        }
-
-        /* ── 免責聲明 ── */
-        .disclaimer {
-            font-size: 11px;
-            color: var(--text3);
-            padding: 14px 16px;
-            background: rgba(255, 255, 255, 0.02);
-            border-radius: 4px;
-            margin-top: 16px;
-            line-height: 1.8;
-            text-align: center;
-            border-top: 1px solid var(--border);
-        }
-
-        /* ===== 能量條 ===== */
-        .energy-container { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
-        .energy-row {
-            display: flex; align-items: stretch; height: 36px;
-            background: rgba(255, 255, 255, 0.02); border-radius: var(--card-radius);
-            border: 1px solid rgba(74, 158, 224, 0.06); transition: all 0.25s ease;
-            position: relative; overflow: hidden; cursor: default;
-        }
-        .energy-row:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(74, 158, 224, 0.18);
-            transform: scale(1.002);
-        }
-        .energy-row.is-zg {
-            background: rgba(163, 113, 247, 0.10); border-color: rgba(163, 113, 247, 0.20);
-            box-shadow: inset 0 0 30px rgba(163, 113, 247, 0.04);
-        }
-        .energy-row.is-maxc { background: rgba(224, 82, 82, 0.07); border-color: rgba(224, 82, 82, 0.18); }
-        .energy-row.is-maxp { background: rgba(61, 191, 140, 0.07); border-color: rgba(61, 191, 140, 0.18); }
-
-        .energy-left { flex: 1; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; min-width: 0; }
-        .energy-left .bar-track {
-            width: 100%; height: var(--bar-height); border-radius: 4px 0 0 4px;
-            background: rgba(224, 82, 82, 0.08); position: relative; overflow: hidden; direction: rtl;
-        }
-        .energy-left .bar-fill {
-            height: 100%; border-radius: 4px 0 0 4px;
-            background: linear-gradient(90deg, #ff6b6b, #e05252, #b33a3a);
-            box-shadow: 0 0 18px rgba(224, 82, 82, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-            transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-            position: relative; display: flex; align-items: center; justify-content: center;
-            min-width: 28px; padding: 0 4px; direction: ltr;
-        }
-        .energy-right { flex: 1; display: flex; align-items: center; padding-left: 6px; min-width: 0; }
-        .energy-right .bar-track {
-            width: 100%; height: var(--bar-height); border-radius: 0 4px 4px 0;
-            background: rgba(61, 191, 140, 0.08); position: relative; overflow: hidden;
-        }
-        .energy-right .bar-fill {
-            height: 100%; border-radius: 0 4px 4px 0;
-            background: linear-gradient(270deg, #5cdba3, #3DBF8C, #2a8f6a);
-            box-shadow: 0 0 18px rgba(61, 191, 140, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-            transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-            position: relative; display: flex; align-items: center; justify-content: center;
-            min-width: 28px; padding: 0 4px;
-        }
-        .bar-value {
-            font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; color: #fff;
-            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.50); letter-spacing: 0.2px;
-            white-space: nowrap; z-index: 2; opacity: 0.95; line-height: 1; padding: 0 2px;
-        }
-        .energy-center {
-            flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
-            justify-content: center; padding: 0 8px; min-width: 70px; position: relative; z-index: 3;
-        }
-        .energy-price {
-            font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700;
-            color: var(--primary-light);
-            text-shadow: 0 0 20px rgba(74, 158, 224, 0.25);
-            letter-spacing: 0.5px; line-height: 1.2; transition: all 0.2s;
-        }
-        .energy-tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; margin-top: 1px; }
-        .energy-tag {
-            font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700;
-            padding: 1px 6px; border-radius: 3px; letter-spacing: 0.3px;
-            line-height: 1.4; background: rgba(255, 255, 255, 0.06); color: var(--text3);
-            border: 1px solid rgba(255, 255, 255, 0.04);
-        }
-        .energy-tag.zg {
-            background: rgba(163, 113, 247, 0.20); color: var(--purple);
-            border-color: rgba(163, 113, 247, 0.20);
-        }
-        .energy-tag.maxc {
-            background: rgba(224, 82, 82, 0.20); color: var(--red-glow);
-            border-color: rgba(224, 82, 82, 0.20);
-        }
-        .energy-tag.maxp {
-            background: rgba(61, 191, 140, 0.20); color: var(--green-glow);
-            border-color: rgba(61, 191, 140, 0.20);
-        }
-        .energy-tag.big {
-            background: rgba(210, 153, 29, 0.18); color: var(--amber);
-            border-color: rgba(210, 153, 29, 0.18);
-        }
-        .energy-empty { text-align: center; padding: 30px 0; color: var(--text3); font-size: 15px; }
-
-        @media (max-width: 500px) {
-            .energy-row { height: 30px; }
-            .energy-center { min-width: 55px; padding: 0 4px; }
-            .energy-price { font-size: 13px; }
-            .bar-value { font-size: 8px; }
-            .energy-left .bar-fill, .energy-right .bar-fill { min-width: 22px; }
-            :root { --bar-height: 16px; }
-        }
+        .red { color: var(--red); } .green { color: var(--green); } .purple { color: var(--purple); }
+        .section-title { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--text2); margin: 12px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .rating-table { width: 100%; font-size: 13px; border-collapse: collapse; margin-bottom: 16px; background: var(--bg2); border-radius: 4px; overflow: hidden; }
+        .rating-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); }
+        .rating-table .pressure { color: #ff8c8c; } .rating-table .support { color: #8ce0a0; }
+        .rating-table .spot-row td { background: rgba(74,158,224,0.08); font-weight: 700; color: var(--primary-light); }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; font-size: 12px; border-collapse: collapse; min-width: 600px; background: var(--bg2); }
+        th { padding: 8px 6px; color: var(--text); font-size: 11px; border-bottom: 1px solid var(--border); text-align: center; background: var(--bg3); }
+        td { padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.04); text-align: center; color: var(--text); }
+        .pos { color: var(--red); } .neg { color: var(--green); }
+        .chart-legend { display: flex; gap: 10px; font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+        .ld { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
+        .energy-container { display: flex; flex-direction: column; gap: 6px; }
+        .energy-row { display: flex; align-items: stretch; height: 34px; background: rgba(255,255,255,0.02); border-radius: 4px; border: 1px solid rgba(255,255,255,0.04); }
+        .energy-row.is-zg { background: rgba(163,113,247,0.10); border-color: rgba(163,113,247,0.20); }
+        .energy-row.is-maxc { background: rgba(224,82,82,0.07); }
+        .energy-row.is-maxp { background: rgba(61,191,140,0.07); }
+        .energy-left { flex: 1; display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; }
+        .energy-left .bar-track { width: 100%; height: 20px; border-radius: 3px 0 0 3px; background: rgba(224,82,82,0.08); overflow: hidden; direction: rtl; }
+        .energy-left .bar-fill { height: 100%; border-radius: 3px 0 0 3px; background: linear-gradient(90deg, #ff6b6b, #e05252); display: flex; align-items: center; justify-content: center; min-width: 28px; direction: ltr; }
+        .energy-right { flex: 1; display: flex; align-items: center; padding-left: 4px; }
+        .energy-right .bar-track { width: 100%; height: 20px; border-radius: 0 3px 3px 0; background: rgba(61,191,140,0.08); overflow: hidden; }
+        .energy-right .bar-fill { height: 100%; border-radius: 0 3px 3px 0; background: linear-gradient(270deg, #5cdba3, #3DBF8C); display: flex; align-items: center; justify-content: center; min-width: 28px; }
+        .bar-value { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; color: #fff; white-space: nowrap; }
+        .energy-center { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 8px; min-width: 70px; }
+        .energy-price { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--primary-light); }
+        .energy-tags { display: flex; gap: 3px; }
+        .energy-tag { font-family: 'JetBrains Mono', monospace; font-size: 8px; padding: 1px 5px; border-radius: 2px; background: rgba(255,255,255,0.06); color: var(--text3); }
+        .energy-tag.zg { background: rgba(163,113,247,0.20); color: var(--purple); }
+        .update-time { text-align: center; font-size: 13px; color: var(--text3); padding: 16px; border-top: 1px solid var(--border); margin-top: 20px; }
+        .copy-row { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+        .copy-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 10px 14px; color: var(--text); font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+        .copy-btn { background: transparent; border: 1px solid var(--border2); border-radius: 4px; padding: 10px 16px; color: var(--primary-light); font-size: 14px; cursor: pointer; }
     </style>
 </head>
 <body>
-
     <div class="header">
-        <div class="header-left">
-            <h1>GammaFlow NQ</h1>
-            <span class="header-sub" id="statusText">載入中...</span>
-        </div>
-        <button class="refresh-btn" onclick="loadData()">⟳ 更新</button>
+        <div><h1>GammaFlow NQ</h1><span class="header-sub" id="statusText">載入中...</span></div>
+        <button class="refresh-btn" onclick="loadAll()">⟳ 更新</button>
     </div>
-
-    <div class="section">
-        <div class="section-title">📅 NQ 選擇權關鍵位</div>
+    <div class="main-tabs" id="tabBar">
+        <button class="tab active" data-tab="home">首頁</button>
+        <button class="tab" data-tab="chips">籌碼增減</button>
+        <button class="tab" data-tab="cumulative">累計趨勢</button>
+        <button class="tab" data-tab="sr">選擇權壓力表</button>
+    </div>
+    <div id="home" class="section active">
+        <div class="section-title">📋 NQ 關鍵價位</div>
         <div class="summary-grid">
-            <div class="card"><h3>🔴 最大壓力</h3><div class="big red" id="nqResist">-</div><div class="sub" id="nqResistOI"></div></div>
-            <div class="card"><h3>🟢 最大支撐</h3><div class="big green" id="nqSupport">-</div><div class="sub" id="nqSupportOI"></div></div>
-            <div class="card"><h3>⚡ Zero Gamma</h3><div class="big purple" id="nqZG">-</div><div class="sub">多空分界</div></div>
-            <div class="card"><h3>📈 NDX 參考</h3><div class="big nq-primary" id="nqNDX">-</div><div class="sub" id="nqVol"></div></div>
+            <div class="card"><h3>🔴 最大壓力</h3><div class="big red" id="mResist">-</div><div class="sub" id="mResistOI"></div></div>
+            <div class="card"><h3>🟢 最大支撐</h3><div class="big green" id="mSupport">-</div><div class="sub" id="mSupportOI"></div></div>
+            <div class="card"><h3>⚡ Zero Gamma</h3><div class="big purple" id="mZG">-</div><div class="sub">多空分界</div></div>
+            <div class="card"><h3>📈 NQ 參考價</h3><div class="big" id="mRef">-</div><div class="sub" id="mPos"></div></div>
         </div>
-
-        <!-- 🧠 市場格局分析 (已修正) -->
-        <div class="analysis-card" id="analysisCard" style="display:none;">
-            <h3>🧠 NQ 市場格局分析</h3>
-            <div id="analysisContent"></div>
-        </div>
-
-        <div class="section-title">🔵 NQ 選擇權壓力表</div>
-
-        <!-- 图例 -->
-        <div class="legend">
-            <span><span class="legend-dot red"></span> 壓力 (Call OI)</span>
-            <span><span class="legend-dot green"></span> 支撐 (Put OI)</span>
-            <span><span class="legend-dot purple"></span> ZG 多空分界</span>
-            <span><span class="legend-dot gold"></span> 大資金</span>
-        </div>
-
-        <div class="energy-container" id="nqEnergyList"></div>
-
-        <!-- 使用提示 -->
-        <div class="info-box">
-            <strong>📘 使用提示</strong><br>
-            • <strong>ZG 上方＝正 Gamma 區域</strong>，Dealer 對沖抑制波動，適合低買高賣。<br>
-            • <strong>ZG 下方＝負 Gamma 區域</strong>，Dealer 對沖放大波動，適合順勢追價。<br>
-            • <strong>紅色能量條越長</strong>，代表該價位的 Call 賣壓越重；<strong>綠色能量條越長</strong>，代表 Put 支撐越強。<br>
-            • <strong>標記 💰 大資金</strong> 的價位，代表機構籌碼集中，是更關鍵的支撐壓力區。<br>
-            • 每日早上 7 點自動更新，數據基於前一日選擇權未平倉量計算。
-        </div>
-
-        <!-- 📌 NQ 數據說明 -->
-        <div class="info-box" style="margin-top:16px;">
-            <h4>📌 NQ 數據說明</h4>
-            NQ 選擇權的數據基於 <strong>每日盤後未平倉量</strong> 計算，反映的是前一個交易日的市場籌碼結構。<br><br>
-            <strong>適合短線交易者：</strong><br>
-            • 用來規劃 <strong>當日的支撐壓力區間</strong>，判斷盤中多空方向。<br>
-            • 結合 Zero Gamma 和關鍵牆，快速找到 <strong>短線進出場的參考點</strong>。<br><br>
-            <strong>⚠️ 不適合做為中長期趨勢的唯一依據：</strong><br>
-            • 數據每天更新一次，無法反映盤中即時的籌碼變化。<br>
-            • 若需中長線判斷，建議搭配其他總體經濟指標或每週 CFTC 大戶報告。
-        </div>
-
-        <div class="card" style="margin-top:20px">
-            <h3 style="color:var(--text3);">📋 NQ GAMMA 指標數據</h3>
-            <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
-                <input id="tvNqInput" readonly style="flex:1; background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:10px; color:var(--text); font-size:13px; font-family:'JetBrains Mono',monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" placeholder="載入中...">
-                <button onclick="copyTV()" style="background:transparent; border:1px solid var(--border2); border-radius:4px; padding:10px 16px; color:var(--primary-light); font-family:'JetBrains Mono',monospace; font-size:14px; cursor:pointer; white-space:nowrap;">📋 複製</button>
-            </div>
-        </div>
-
-        <!-- ⚠️ 免責聲明 -->
-        <div class="disclaimer">
-            <strong>⚠️ 風險提示與免責聲明</strong><br>
-            GammaFlow NQ 及相關指標為輔助分析工具，不構成任何投資、交易或操作建議。所有數據皆基於公開資訊與數學模型計算，僅供參考。<br>
-            選擇權與期貨交易具有高風險，可能導致本金全部虧損。使用者應自行判斷市場狀況並承擔所有交易風險，開發者不對任何因使用本工具而產生的損失負責。
-        </div>
-
-        <div class="update-time" id="updateTime" style="text-align:center; font-size:13px; color:var(--text3); padding:16px; margin-top:20px;">最後更新：載入中...</div>
+        <div class="section-title" style="margin-top:24px;">📊 美股市場總覽</div>
+        <div class="summary-grid" id="marketCards"></div>
+        <div class="card" style="margin-top:24px"><h3>GAMMA指標數據</h3><div class="copy-row"><span>NQ 合併</span><input class="copy-input" id="tvInput" readonly><button class="copy-btn" onclick="copyTV()">📋 複製</button></div></div>
+        <div class="update-time" id="updateTime">最後更新：載入中...</div>
+    </div>
+    <div id="chips" class="section">
+        <div class="section-title">📊 每日 Call / Put OI 變化</div>
+        <div class="chart-legend"><span><span class="ld" style="background:#E05252"></span>Call OI 變化</span><span><span class="ld" style="background:#3DBF8C"></span>Put OI 變化</span></div>
+        <div style="height:240px"><canvas id="cChips"></canvas></div>
+        <div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>日期</th><th>總CallOI</th><th>總PutOI</th><th>Call變化</th><th>Put變化</th><th>C/P比</th></tr></thead><tbody id="chipsTbody"></tbody></table></div>
+    </div>
+    <div id="cumulative" class="section">
+        <div class="section-title">📈 累計趨勢（每日累加）</div>
+        <div style="margin-bottom:10px"><select id="cumRange" onchange="buildCumulativeChart()" style="background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:6px 12px; color:var(--text);"><option value="30">30天</option><option value="60" selected>60天</option><option value="90">90天</option></select></div>
+        <div class="chart-legend"><span><span class="ld" style="background:#E05252"></span>累積 Call OI</span><span><span class="ld" style="background:#3DBF8C"></span>累積 Put OI</span></div>
+        <div style="height:240px"><canvas id="cCum"></canvas></div>
+        <div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>日期</th><th>總CallOI</th><th>總PutOI</th><th>Call變化</th><th>Put變化</th><th>累積Call</th><th>累積Put</th></tr></thead><tbody id="cumTbody"></tbody></table></div>
+    </div>
+    <div id="sr" class="section">
+        <div style="font-size:13px; color:var(--text2); margin-bottom:16px;">📅 NQ 選擇權｜<span style="color:#ff6b6b;">◀ 壓力(Call)</span> ｜ <span style="color:#5cdba3;">支撐(Put) ▶</span> ｜ 條寬 = 未平倉量</div>
+        <div id="srRating"></div>
+        <div class="energy-container" id="srList"></div>
+        <div class="update-time" id="srTime"></div>
     </div>
 
     <script>
         const SHEET_ID = "1oPHb8dhDBpoN623zU0zEpC7cuiFLCrzWmvlcZsfSYFM";
-        let DATA = { sr: [] };
-
+        let DATA = { chips: [], cumulative: [], sr: [], market: null, zg: null, maxCall: null, maxPut: null };
+        const charts = {};
         function safeNum(s) { const n = parseFloat(String(s || 0).replace(/,/g, '')); return isNaN(n) ? 0 : n; }
+        function fmt(v) { return (v > 0 ? '+' : '') + Math.round(v).toLocaleString(); }
+        function cls(v) { return v > 0 ? 'pos' : v < 0 ? 'neg' : ''; }
 
-        async function fetchSheet(name) {
-            try {
-                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(name)}&_=${Date.now()}&r=${Math.random()}`;
-                const r = await fetch(url);
-                const t = await r.text();
-                const j = JSON.parse(t.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
-                const cols = j.table.cols || [];
-                return (j.table.rows || []).map(row => {
-                    const o = {};
-                    cols.forEach((c, i) => { const cell = row.c && row.c[i]; o[c.label] = cell ? (cell.v !== null ? cell.v : '') : ''; });
-                    return o;
-                });
-            } catch (e) { return []; }
+        async function fetchRawCSV(name, range = "A1:Z500") {
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}&range=${range}&_=${Date.now()}`;
+            const r = await fetch(url);
+            if (!r.ok) return '';
+            return await r.text();
         }
 
-        function buildSummaryCard(dataRows) {
-            if (!dataRows.length) return;
-            const sorted = [...dataRows].sort((a, b) => safeNum(b['履約價']) - safeNum(a['履約價']));
-            let topC = sorted.reduce((a, b) => safeNum(a['CallOI']) > safeNum(b['CallOI']) ? a : b);
-            let topP = sorted.reduce((a, b) => safeNum(a['PutOI']) > safeNum(b['PutOI']) ? a : b);
-            let zg = sorted.find(r => String(r['Zero Gamma'] || '').includes('分界'));
-            
-            document.getElementById('nqResist').textContent = safeNum(topC['履約價']).toLocaleString();
-            document.getElementById('nqResistOI').textContent = `Call ${Math.round(safeNum(topC['CallOI'])/1000)}K 口`;
-            document.getElementById('nqSupport').textContent = safeNum(topP['履約價']).toLocaleString();
-            document.getElementById('nqSupportOI').textContent = `Put ${Math.round(safeNum(topP['PutOI'])/1000)}K 口`;
-            
-            const zgStrike = zg ? safeNum(zg['履約價']) : null;
-            document.getElementById('nqZG').textContent = zgStrike ? zgStrike.toLocaleString() : '-';
-            document.getElementById('nqNDX').textContent = '請參考指標';
-            document.getElementById('nqVol').textContent = '^VXN 波動率參考';
-
-            buildAnalysis(dataRows, topC, topP, zg);
+        function csvToRows(csv) {
+            return csv.trim().split('\n').filter(l => l.trim()).map(l => l.split(',').map(c => c.replace(/^"|"$/g, '').trim()));
         }
 
-        function buildAnalysis(dataRows, topC, topP, zg) {
-            const card = document.getElementById('analysisCard');
-            const content = document.getElementById('analysisContent');
-            if (!card || !content) return;
-
-            const zgStrike = zg ? safeNum(zg['履約價']) : null;
-            const strikes = dataRows.map(r => safeNum(r['履約價'])).filter(s => s > 0);
-            const midPrice = strikes.length > 0 ? Math.round((Math.max(...strikes) + Math.min(...strikes)) / 2) : null;
-
-            let html = '';
-
-            // ── ZG 結構分析 (已修正為波動模式判斷) ──
-            if (zgStrike && midPrice) {
-                const diff = midPrice - zgStrike;
-                const diffPct = zgStrike > 0 ? (diff / zgStrike * 100) : 0;
-
-                if (diffPct > 2) {
-                    html += `<div class="analysis-item"><span class="analysis-tag tag-info">📐 ZG 上方</span>價格區間中位數高於 Zero Gamma (${zgStrike.toLocaleString()}) 約 ${diffPct.toFixed(1)}%，市場處於<strong>正 Gamma 區域</strong>，Dealer 對沖將抑制波動，價格傾向區間整理，操作上適合低買高賣。</div>`;
-                } else if (diffPct < -2) {
-                    html += `<div class="analysis-item"><span class="analysis-tag tag-info">📐 ZG 下方</span>價格區間中位數低於 Zero Gamma (${zgStrike.toLocaleString()}) 約 ${Math.abs(diffPct).toFixed(1)}%，市場處於<strong>負 Gamma 區域</strong>，Dealer 對沖將放大波動，容易出現方向性行情，操作上適合順勢追價。</div>`;
-                } else {
-                    html += `<div class="analysis-item"><span class="analysis-tag tag-info">📐 ZG 附近</span>價格區間中位數貼近 Zero Gamma (${zgStrike.toLocaleString()})，Gamma 結構即將翻轉，市場面臨方向選擇，需等待進一步表態。</div>`;
-                }
-            } else {
-                html += `<div class="analysis-item"><span class="analysis-tag tag-info">數據載入中</span>Zero Gamma 數據尚未就緒，請稍後再更新。</div>`;
-            }
-
-            // 補充：最大壓力與支撐的距離
-            if (topC && topP) {
-                const resistStrike = safeNum(topC['履約價']);
-                const supportStrike = safeNum(topP['履約價']);
-                const gap = resistStrike - supportStrike;
-                if (gap > 0) {
-                    html += `<div class="analysis-item"><span class="analysis-tag tag-info">區間觀察</span>最大壓力 ${resistStrike.toLocaleString()} 與最大支撐 ${supportStrike.toLocaleString()} 之間距約 ${gap.toLocaleString()} 點，可作為短線震盪區間參考。</div>`;
-                }
-            }
-
-            // ZG 距離提示
-            if (zgStrike && midPrice) {
-                const zgDist = Math.abs(midPrice - zgStrike);
-                if (zgDist > 500) {
-                    html += `<div class="analysis-item"><span class="analysis-tag tag-info">ZG 偏離</span>Zero Gamma 距離當前價格區間較遠（約 ${zgDist.toLocaleString()} 點），短線可改以最大壓力／支撐為主要參考，等待 ZG 回歸。</div>`;
-                }
-            }
-
-            content.innerHTML = html;
-            card.style.display = 'block';
-        }
-
-        function buildEnergyBars(dataRows) {
-            const div = document.getElementById('nqEnergyList');
-            if (!dataRows.length) {
-                div.innerHTML = '<div class="energy-empty">📭 尚無資料</div>';
+        // ========== 市場數據 ==========
+        async function loadMarket() {
+            const csv = await fetchRawCSV("NQ 市場數據");
+            const rows = csvToRows(csv);
+            if (rows.length < 2) {
+                document.getElementById('marketCards').innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;color:var(--text3);">⏳ 美股市場數據尚未就緒</div>';
                 return;
             }
+            const last = rows[rows.length - 1];
+            DATA.market = { ndx: safeNum(last[1]) };
+            document.getElementById('mRef').textContent = DATA.market.ndx.toLocaleString();
+            const items = [
+                ['NDX',1,2],['SPX',3,4],['SOX',5,6],['VIX',7,null],['VXN',8,null],
+                ['AAPL',9,10],['MSFT',11,12],['NVDA',13,14],['NQ期貨',15,16],['TSM',17,18]
+            ];
+            document.getElementById('marketCards').innerHTML = items.map(([lb, vi, ci]) => {
+                const v = safeNum(last[vi]).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2});
+                let c = ''; if (ci && last[ci]) { const cv = parseFloat(last[ci]); if (!isNaN(cv) && cv !== 0) c = `<div class="sub ${cv>0?'pos':'neg'}">${cv>0?'+':''}${cv.toFixed(2)}%</div>`; }
+                return `<div class="card"><h3>${lb}</h3><div class="big">${v}</div>${c}</div>`;
+            }).join('');
+        }
 
-            const sorted = [...dataRows].sort((a, b) => safeNum(b['履約價']) - safeNum(a['履約價']));
-            const maxCallOI = Math.max(1, ...sorted.map(r => safeNum(r['CallOI'])));
-            const maxPutOI = Math.max(1, ...sorted.map(r => safeNum(r['PutOI'])));
-            const maxTotal = Math.max(1, maxCallOI + maxPutOI);
+        // ========== 籌碼分析 ==========
+        async function loadChips() {
+            const csv = await fetchRawCSV("NQ 籌碼分析");
+            const rows = csvToRows(csv);
+            if (rows.length < 2) return;
+            DATA.chips = rows.slice(1).map(r => ({
+                date: r[0], totalCall: safeNum(r[1]), totalPut: safeNum(r[2]), cpRatio: parseFloat(r[3])||0,
+                callChange: safeNum(r[4]), putChange: safeNum(r[5]),
+                maxCallPrice: safeNum(r[6]), maxCallOI: safeNum(r[7]),
+                maxPutPrice: safeNum(r[8]), maxPutOI: safeNum(r[9])
+            }));
+            const last = DATA.chips[DATA.chips.length - 1];
+            if (last) {
+                document.getElementById('mResist').textContent = last.maxCallPrice.toLocaleString();
+                document.getElementById('mResistOI').textContent = `Call ${Math.round(last.maxCallOI/1000)}K 口`;
+                document.getElementById('mSupport').textContent = last.maxPutPrice.toLocaleString();
+                document.getElementById('mSupportOI').textContent = `Put ${Math.round(last.maxPutOI/1000)}K 口`;
+                DATA.maxCall = { strike: last.maxCallPrice, oi: last.maxCallOI };
+                DATA.maxPut = { strike: last.maxPutPrice, oi: last.maxPutOI };
+            }
+            document.getElementById('chipsTbody').innerHTML = [...DATA.chips].reverse().slice(0,30).map(r =>
+                `<tr><td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td>${r.cpRatio.toFixed(2)}</td></tr>`
+            ).join('');
+            buildChipsChart();
+        }
 
-            let html = '';
-            sorted.forEach((r, idx) => {
-                const strike = safeNum(r['履約價']);
-                const c = safeNum(r['CallOI']);
-                const p = safeNum(r['PutOI']);
-                const cPct = Math.max(3, (c / maxTotal) * 100);
-                const pPct = Math.max(3, (p / maxTotal) * 100);
+        // ========== 累計趨勢 ==========
+        async function loadCumulative() {
+            const csv = await fetchRawCSV("NQ 累計趨勢");
+            const rows = csvToRows(csv);
+            if (rows.length < 2) return;
+            DATA.cumulative = rows.slice(1).map(r => ({
+                date: r[0], totalCall: safeNum(r[1]), totalPut: safeNum(r[2]),
+                callChange: safeNum(r[3]), putChange: safeNum(r[4]),
+                cumCall: safeNum(r[5]), cumPut: safeNum(r[6])
+            }));
+            document.getElementById('cumTbody').innerHTML = [...DATA.cumulative].reverse().slice(0,60).map(r =>
+                `<tr><td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td>${fmt(r.cumCall)}</td><td>${fmt(r.cumPut)}</td></tr>`
+            ).join('');
+            buildCumulativeChart();
+        }
 
-                const isZG = String(r['Zero Gamma'] || '').includes('分界');
-                const isBig = String(r['大資金'] || '').includes('大資金');
-                const isMaxC = (c === maxCallOI && c > 0);
-                const isMaxP = (p === maxPutOI && p > 0);
+        // ========== 選擇權合併 ==========
+        async function loadSR() {
+            const csv = await fetchRawCSV("NQ 合併");
+            const rows = csvToRows(csv);
+            const dataRows = rows.slice(4);
+            DATA.sr = dataRows.map(r => ({
+                strike: safeNum(r[1]), callOI: safeNum(r[2]), putOI: safeNum(r[3]),
+                zgFlag: r[7] && r[7].includes('分界')
+            })).filter(r => r.strike > 0);
+            const zgRow = DATA.sr.find(r => r.zgFlag);
+            DATA.zg = zgRow ? zgRow.strike : null;
+            if (DATA.zg) {
+                document.getElementById('mZG').textContent = DATA.zg.toLocaleString();
+                const ref = DATA.market ? DATA.market.ndx : 0;
+                document.getElementById('mPos').textContent = ref > DATA.zg ? '🟢 偏多區' : ref < DATA.zg ? '🔴 偏空區' : '';
+            }
+            buildSRBars();
+            buildRatingTable();
+        }
 
-                let rowClass = 'energy-row';
-                if (isZG) rowClass += ' is-zg';
-                if (isMaxC) rowClass += ' is-maxc';
-                if (isMaxP) rowClass += ' is-maxp';
+        function buildRatingTable() {
+            const spot = DATA.market ? DATA.market.ndx : 0;
+            if (!spot || !DATA.sr.length) { document.getElementById('srRating').innerHTML = ''; return; }
+            let above = [], below = [];
+            DATA.sr.forEach(r => {
+                const d = r.strike - spot;
+                if (d > 0) above.push({...r, dist: d});
+                else if (d < 0) below.push({...r, dist: Math.abs(d)});
+            });
+            above.sort((a,b) => a.dist - b.dist); below.sort((a,b) => a.dist - b.dist);
+            const topP = above.slice(0,3), topS = below.slice(0,3);
+            const sc = DATA.maxCall ? DATA.maxCall.strike : null;
+            const sp = DATA.maxPut ? DATA.maxPut.strike : null;
+            let h = '<div style="margin:16px 0;background:var(--bg2);border-radius:4px;padding:12px 16px;border-left:3px solid var(--primary-light);"><div style="font-weight:700;color:var(--primary-light);margin-bottom:8px;">📋 壓力支撐評級表</div><table class="rating-table">';
+            topP.forEach(p => {
+                const oiD = p.callOI >= 1000 ? (p.callOI/1000).toFixed(1)+'K' : p.callOI;
+                h += `<tr><td class="pressure">${p.strike===sc?'🔵 強壓':'🔹 壓力'} ${p.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 +${((p.dist/spot)*100).toFixed(1)}%</td></tr>`;
+            });
+            h += `<tr class="spot-row"><td>─── 現貨約 ${spot.toLocaleString()} ───</td><td></td></tr>`;
+            topS.forEach(s => {
+                const oiD = s.putOI >= 1000 ? (s.putOI/1000).toFixed(1)+'K' : s.putOI;
+                h += `<tr><td class="support">${s.strike===sp?'🟢 強撐':'🟩 支撐'} ${s.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 -${((s.dist/spot)*100).toFixed(1)}%</td></tr>`;
+            });
+            h += '</table></div>';
+            document.getElementById('srRating').innerHTML = h;
+        }
 
+        function buildSRBars() {
+            const div = document.getElementById('srList');
+            if (!DATA.sr.length) { div.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);">📭 尚無資料</div>'; return; }
+            const sorted = [...DATA.sr].sort((a,b) => b.strike - a.strike);
+            const maxT = Math.max(1, ...sorted.map(r => r.callOI + r.putOI));
+            div.innerHTML = sorted.map(r => {
+                const cP = Math.max(3, (r.callOI/maxT)*100), pP = Math.max(3, (r.putOI/maxT)*100);
+                const isZG = DATA.zg === r.strike, isMC = DATA.maxCall && DATA.maxCall.strike === r.strike, isMP = DATA.maxPut && DATA.maxPut.strike === r.strike;
+                const cD = r.callOI >= 1000 ? (r.callOI/1000).toFixed(1)+'K' : r.callOI;
+                const pD = r.putOI >= 1000 ? (r.putOI/1000).toFixed(1)+'K' : r.putOI;
                 let tags = '';
                 if (isZG) tags += '<span class="energy-tag zg">ZG</span>';
-                if (isBig) tags += '<span class="energy-tag big">大</span>';
-                if (isMaxC && !isZG) tags += '<span class="energy-tag maxc">最強壓</span>';
-                if (isMaxP && !isZG) tags += '<span class="energy-tag maxp">最強撐</span>';
-
-                const cDisplay = c >= 1000 ? (c / 1000).toFixed(1) + 'K' : String(c);
-                const pDisplay = p >= 1000 ? (p / 1000).toFixed(1) + 'K' : String(p);
-
-                html += `
-                    <div class="${rowClass}">
-                        <div class="energy-left">
-                            <div class="bar-track">
-                                <div class="bar-fill" style="width: ${cPct}%;">
-                                    ${c > 0 ? `<span class="bar-value">${cDisplay}</span>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="energy-center">
-                            <span class="energy-price">${strike.toLocaleString()}</span>
-                            ${tags ? `<div class="energy-tags">${tags}</div>` : ''}
-                        </div>
-                        <div class="energy-right">
-                            <div class="bar-track">
-                                <div class="bar-fill" style="width: ${pPct}%;">
-                                    ${p > 0 ? `<span class="bar-value">${pDisplay}</span>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            div.innerHTML = html;
+                if (isMC) tags += '<span class="energy-tag" style="background:rgba(224,82,82,0.2);color:#ff6b6b;">最強壓</span>';
+                if (isMP) tags += '<span class="energy-tag" style="background:rgba(61,191,140,0.2);color:#5cdba3;">最強撐</span>';
+                return `<div class="energy-row${isZG?' is-zg':''}${isMC?' is-maxc':''}${isMP?' is-maxp':''}"><div class="energy-left"><div class="bar-track"><div class="bar-fill" style="width:${cP}%;">${r.callOI>0?`<span class="bar-value">${cD}</span>`:''}</div></div></div><div class="energy-center"><span class="energy-price">${r.strike.toLocaleString()}</span>${tags?`<div class="energy-tags">${tags}</div>`:''}</div><div class="energy-right"><div class="bar-track"><div class="bar-fill" style="width:${pP}%;">${r.putOI>0?`<span class="bar-value">${pD}</span>`:''}</div></div></div></div>`;
+            }).join('');
         }
 
-        async function loadData() {
-            const btn = document.querySelector('.refresh-btn');
-            if (btn) btn.textContent = '⏳ 更新中...';
+        function buildChipsChart() {
+            if (!DATA.chips.length) return;
+            const d = DATA.chips.slice(-30);
+            if (charts.cChips) charts.cChips.destroy();
+            charts.cChips = new Chart(document.getElementById('cChips'), { type: 'line', data: { labels: d.map(r => r.date), datasets: [
+                { data: d.map(r => r.callChange), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
+                { data: d.map(r => r.putChange), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
+            ]}, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 } } }, y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } } });
+        }
+
+        function buildCumulativeChart() {
+            if (!DATA.cumulative.length) return;
+            const range = parseInt(document.getElementById('cumRange').value || 60);
+            const d = DATA.cumulative.slice(-range);
+            if (charts.cCum) charts.cCum.destroy();
+            charts.cCum = new Chart(document.getElementById('cCum'), { type: 'line', data: { labels: d.map(r => r.date), datasets: [
+                { data: d.map(r => r.cumCall), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
+                { data: d.map(r => r.cumPut), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
+            ]}, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 } } }, y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } } });
+        }
+
+        async function loadTVString() {
+            const csv = await fetchRawCSV("NQ 合併", "A2:A2");
+            document.getElementById('tvInput').value = csv.replace(/"/g, '').trim();
+        }
+
+        async function copyTV() {
+            const i = document.getElementById('tvInput');
+            try { await navigator.clipboard.writeText(i.value); } catch(e) { i.select(); document.execCommand('copy'); }
+            const b = document.querySelector('.copy-btn'); b.textContent = '✅ 已複製'; setTimeout(() => { b.textContent = '📋 複製'; }, 1500);
+        }
+
+        document.getElementById('tabBar').addEventListener('click', e => {
+            const tab = e.target.closest('.tab'); if (!tab) return;
+            const id = tab.getAttribute('data-tab');
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.querySelectorAll('#tabBar .tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            if (id === 'cumulative') buildCumulativeChart();
+            if (id === 'chips') buildChipsChart();
+        });
+
+        async function loadAll() {
             document.getElementById('statusText').textContent = '更新中...';
             try {
-                const srRows = await fetchSheet('NQ 合併');
-                DATA.sr = srRows.filter(r => String(r['履約價'] || '').match(/^\d/));
-
-                buildSummaryCard(DATA.sr);
-                buildEnergyBars(DATA.sr);
-                
-                try {
-                    const tvRes = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=NQ 合併&range=A2&_=${Date.now()}`);
-                    document.getElementById('tvNqInput').value = (await tvRes.text()).replace(/"/g, '').trim();
-                } catch (e) {}
-
+                await Promise.all([loadMarket(), loadChips(), loadCumulative(), loadSR(), loadTVString()]);
                 const now = new Date().toLocaleString('zh-TW', { hour12: false });
                 document.getElementById('updateTime').textContent = `最後更新：${now}`;
+                document.getElementById('srTime').textContent = `最後更新：${now}`;
                 document.getElementById('statusText').textContent = '✅ 每日 07:00 自動更新';
-            } catch (e) {
-                document.getElementById('statusText').textContent = '❌ 更新失敗';
-                console.error(e);
-            } finally {
-                if (btn) btn.textContent = '⟳ 更新';
-            }
+            } catch(e) { document.getElementById('statusText').textContent = '❌ 更新失敗'; }
         }
 
-        function copyTV() {
-            const input = document.getElementById('tvNqInput');
-            input.select();
-            document.execCommand('copy');
-            const btn = input.parentElement.querySelector('button');
-            btn.textContent = '✅ 已複製';
-            setTimeout(() => { btn.textContent = '📋 複製'; }, 1500);
-        }
-
-        loadData();
+        loadAll();
     </script>
 </body>
 </html>
