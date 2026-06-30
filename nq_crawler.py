@@ -172,6 +172,7 @@ def calc_nq_gex(details, S, sigma):
         else:
             strike_map[K]["put_oi"] += d["oi"]
             strike_map[K]["put_gex"] += gamma * d["oi"] * MULT * S
+
     result = []
     total_oi = sum(v["call_oi"]+v["put_oi"] for v in strike_map.values())
     for K, v in strike_map.items():
@@ -183,6 +184,7 @@ def calc_nq_gex(details, S, sigma):
             "gex": net_gex, "cp_ratio": cp_ratio, "weight": weight,
             "is_zero_gamma": False, "is_big_money": weight >= 5.0
         })
+
     sorted_res = sorted(result, key=lambda x: x["履約價"])
     cum = 0.0; prev_cum = 0.0; zg_strike = None
     for r in sorted_res:
@@ -192,11 +194,16 @@ def calc_nq_gex(details, S, sigma):
             break
         prev_cum = cum
     if zg_strike is None:
-        best_diff = float('inf'); cum = 0.0
+        best_diff = float('inf')
+        cum = 0.0
         for r in sorted_res:
             cum += r["gex"]
-            if abs(cum) < best_diff:
-                best_diff = abs(cum); zg_strike = r["履約價"]
+            diff = abs(cum)
+            if diff < best_diff:
+                best_diff = diff
+                zg_strike = r["履約價"]
+        if zg_strike is None and len(sorted_res) > 0:
+            zg_strike = sorted_res[0]["履約價"]
     for r in result:
         if r["履約價"] == zg_strike: r["is_zero_gamma"] = True
     return result
@@ -250,13 +257,16 @@ def write_nq_chips_analysis(sh, gex_data, today_str):
     max_call = max(gex_data, key=lambda x: x["call_oi"])
     max_put = max(gex_data, key=lambda x: x["put_oi"])
     all_rows = ws.get_all_values()
+    # 若為新工作表，寫入表頭
+    if len(all_rows) == 0:
+        ws.append_row(["日期","總CallOI","總PutOI","C/P比","Call變化","Put變化","最大壓力價","最大壓力OI","最大支撐價","最大支撐OI"])
+        all_rows = [["日期"]]
+    prev_call = 0
+    prev_put = 0
     if len(all_rows) > 1:
         last_row = all_rows[-1]
         prev_call = int(last_row[1]) if last_row[1] else 0
         prev_put = int(last_row[2]) if last_row[2] else 0
-    else:
-        prev_call = 0
-        prev_put = 0
     call_change = total_call - prev_call
     put_change = total_put - prev_put
     dates = ws.col_values(1)
@@ -275,17 +285,20 @@ def write_nq_cumulative(sh, gex_data, today_str):
     total_call = sum(d["call_oi"] for d in gex_data)
     total_put = sum(d["put_oi"] for d in gex_data)
     all_rows = ws.get_all_values()
+    # 若為新工作表，寫入表頭
+    if len(all_rows) == 0:
+        ws.append_row(["日期","總CallOI","總PutOI","Call變化","Put變化","累積Call","累積Put"])
+        all_rows = [["日期"]]
+    prev_call = 0
+    prev_put = 0
+    prev_cum_call = 0
+    prev_cum_put = 0
     if len(all_rows) > 1:
         last_row = all_rows[-1]
         prev_call = int(last_row[1]) if last_row[1] else 0
         prev_put = int(last_row[2]) if last_row[2] else 0
         prev_cum_call = int(last_row[5]) if len(last_row) > 5 and last_row[5] else 0
         prev_cum_put = int(last_row[6]) if len(last_row) > 6 and last_row[6] else 0
-    else:
-        prev_call = 0
-        prev_put = 0
-        prev_cum_call = 0
-        prev_cum_put = 0
     call_change = total_call - prev_call
     put_change = total_put - prev_put
     cum_call = prev_cum_call + call_change
