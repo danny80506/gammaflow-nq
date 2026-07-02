@@ -132,7 +132,8 @@
         .analysis-block { margin-bottom: 16px; }
         .analysis-block:last-child { margin-bottom: 0; }
         .analysis-block .block-title {
-            font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; color: var(--text2);
+            font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600;
+            color: var(--primary-light);       /* 藍色系標題 */
             padding-bottom: 4px; border-bottom: 1px solid rgba(74,158,224,0.08); margin-bottom: 8px;
         }
         .analysis-item {
@@ -245,9 +246,11 @@
         .footer-disclaimer { text-align: center; font-size: 12px; color: var(--text3); padding: 14px 20px; border-top: 1px solid var(--border); margin-top: 30px; background: var(--bg2); line-height: 1.6; letter-spacing: 0.3px; }
         .footer-disclaimer strong { color: var(--text2); font-weight: 500; }
 
+        /* ===== 手機版修正：更新按鈕縮小 ===== */
         @media (max-width: 600px) {
             .header { padding: 12px 16px; }
             .header h1 { font-size: 20px; }
+            .refresh-btn { font-size: 12px; padding: 4px 12px; }
             .main-tabs { padding: 10px 16px; }
             .section { padding: 14px 16px; }
             .summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -402,6 +405,7 @@
         const last = rows[rows.length-1];
         DATA.market = { ndx: safeNum(last[1]) };
         document.getElementById('mRef').textContent = DATA.market.ndx>0 ? DATA.market.ndx.toLocaleString() : '-';
+        // 預設顏色由後續 loadSR 更新
 
         const items = [
             ['NDX',1,2], ['SPX',3,4], ['SOX',5,6], ['VIX',7,null], ['VXN',8,null],
@@ -465,7 +469,7 @@
             cumCall: safeNum(r[5]), cumPut: safeNum(r[6])
         }));
         document.getElementById('cumTbody').innerHTML = [...DATA.cumulative].reverse().slice(0,60).map(r =>
-            `<tr><td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td>${fmt(r.cumCall)}</td><td>${fmt(r.cumPut)}</td></tr>`
+            `<tr><td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td class="${cls(r.cumCall)}">${fmt(r.cumCall)}</td><td class="${cls(r.cumPut)}">${fmt(r.cumPut)}</td></tr>`
         ).join('');
         buildCumulativeChart();
     }
@@ -480,9 +484,18 @@
                 const diff = DATA.market.ndx - DATA.zg;
                 const pct = (diff/DATA.zg*100);
                 let label = '⚪ ZG附近';
-                if(diff>0) label = '🟢 偏多區 (+'+pct.toFixed(1)+'%)';
-                else if(diff<0) label = '🔴 偏空區 ('+pct.toFixed(1)+'%)';
+                let refColor = ''; // 用於修改 mRef 的 class
+                if(diff>0) {
+                    label = '🟢 偏多區 (+'+pct.toFixed(1)+'%)';
+                    refColor = 'green';
+                } else if(diff<0) {
+                    label = '🔴 偏空區 ('+pct.toFixed(1)+'%)';
+                    refColor = 'red';
+                }
                 document.getElementById('mPos').textContent = label;
+                // 更新參考價顏色
+                const refEl = document.getElementById('mRef');
+                refEl.className = 'big ' + (refColor || '');
             }
         } else {
             document.getElementById('mZG').textContent = '-';
