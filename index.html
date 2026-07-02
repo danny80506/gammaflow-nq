@@ -506,24 +506,24 @@
         // ★ 重點：標題只保留一個代表性燈號，另一個放回內文
         container.innerHTML = `
             <div class="analysis-block">
-                <div class="block-title">📊 籌碼動向 ${dirTag}</div>
+                <div class="block-title"> 籌碼動向 ${dirTag}</div>
                 <div class="analysis-item"><span class="text">${dirText}</span></div>
                 <div style="margin-top:8px;">
-                    <div class="cp-subtitle" style="font-size:13px; margin-bottom:4px;">📊 C/P 比值 ${cpTag}</div>
+                    <div class="cp-subtitle" style="font-size:13px; margin-bottom:4px;"> C/P 比值 ${cpTag}</div>
                     <div class="analysis-item"><span class="text">數值：${cpRatio.toFixed(2)}（${cpText}）</span></div>
                 </div>
             </div>
             <div class="analysis-block">
-                <div class="block-title">📊 Gamma 結構 ${gammaTag}</div>
+                <div class="block-title"> Gamma 結構 ${gammaTag}</div>
                 <div class="analysis-item"><span class="text">${gammaText}</span></div>
             </div>
             <div class="analysis-block">
-                <div class="block-title">📊 關鍵價位</div>
+                <div class="block-title"> 關鍵價位</div>
                 <div class="analysis-item"><span class="text">最大壓力：<span style="color:#ff6b6b;">${DATA.maxCall.strike.toLocaleString()}</span>（Call OI ${fmtOI(DATA.maxCall.oi)} 口）</span></div>
                 <div class="analysis-item"><span class="text">最大支撐：<span style="color:#5cdba3;">${DATA.maxPut.strike.toLocaleString()}</span>（Put OI ${fmtOI(DATA.maxPut.oi)} 口）</span></div>
             </div>
             <div class="analysis-block">
-                <div class="block-title">📊 波動率提醒 ${ivTag}</div>
+                <div class="block-title"> 波動率提醒 ${ivTag}</div>
                 <div class="analysis-item"><span class="text">${ivText}</span></div>
             </div>
             <div class="analysis-block">
