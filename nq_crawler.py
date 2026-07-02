@@ -46,7 +46,7 @@ def get_current_nq_contract():
     current_year = tw_now.year
     for month in [3, 6, 9, 12]:
         expiry = get_third_friday(current_year, month)
-        if today <= expiry:
+        if today <= expiry.date(): 
             yr_suffix = str(current_year)[-2:]
             info = NQ_QUARTER_MAP[month]
             return {
@@ -54,6 +54,7 @@ def get_current_nq_contract():
                 "month_str": f"{info['name']}-{yr_suffix}",
                 "expiry": expiry.strftime("%Y-%m-%d")
             }
+    # 若都不符合，找明年三月
     next_year = current_year + 1
     yr_suffix = str(next_year)[-2:]
     info = NQ_QUARTER_MAP[3]
