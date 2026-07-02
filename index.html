@@ -34,11 +34,8 @@
             --red: #E05252;
             --green: #3DBF8C;
             --purple: #b085f5;
-            --red-glow: rgba(224, 82, 82, 0.25);
-            --green-glow: rgba(61, 191, 140, 0.20);
         }
 
-        /* ===== 捲軸 ===== */
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: var(--bg); }
         ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
@@ -185,25 +182,179 @@
             color: var(--text2);
             margin-top: 4px;
         }
-        .card .sub .tag-sm {
-            display: inline-block;
-            font-size: 11px;
-            padding: 1px 10px;
-            border-radius: 10px;
-            background: var(--bg3);
-            margin-left: 6px;
-        }
 
-        /* ===== 摘要網格 ===== */
+        /* ===== 摘要網格 (NQ關鍵價位) ===== */
         .summary-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 14px;
             margin-bottom: 20px;
         }
-        .summary-grid .card.full {
-            grid-column: 1 / -1;
+
+        /* ===== 美股市場概覽 (飽滿網格) ===== */
+        .market-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
         }
+        .market-item {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.2s;
+        }
+        .market-item:hover {
+            border-color: var(--border2);
+        }
+        .market-item .m-name {
+            font-size: 12px;
+            color: var(--text3);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+        .market-item .m-price {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 2px 0 1px 0;
+            color: var(--text);
+        }
+        .market-item .m-change {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .market-item .m-change.up { color: var(--green); }
+        .market-item .m-change.down { color: var(--red); }
+        .market-item .m-change.flat { color: var(--text3); }
+
+        /* ===== 壓力支撐評級表 (列表式) ===== */
+        .rating-list {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }
+        .rating-list .rating-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary-light);
+            margin-bottom: 12px;
+        }
+        .rating-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 14px;
+        }
+        .rating-item:last-child { border-bottom: none; }
+        .rating-item .left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .rating-item .left .strike {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+        }
+        .rating-item .left .oi {
+            font-size: 13px;
+            color: var(--text2);
+        }
+        .rating-item .dist {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text3);
+            white-space: nowrap;
+        }
+        .rating-item.strong-pressure .left .strike { color: #ff4444; }
+        .rating-item.pressure .left .strike { color: #ff8c8c; }
+        .rating-item.strong-support .left .strike { color: #44dd44; }
+        .rating-item.support .left .strike { color: #8ce0a0; }
+        .rating-item.spot-row {
+            background: var(--primary-dim);
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin: 4px 0;
+            border-left: 3px solid var(--primary-light);
+        }
+        .rating-item.spot-row .left .strike {
+            color: var(--primary-light);
+            font-weight: 700;
+        }
+
+        /* ===== 市場結構與策略 (條列式) ===== */
+        .analysis-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px 22px;
+            margin-top: 0;
+            transition: border-color 0.2s;
+        }
+        .analysis-card:hover {
+            border-color: var(--border2);
+        }
+        .analysis-card .card-header {
+            margin-bottom: 14px;
+        }
+        .analysis-card .card-header h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary-light);
+            letter-spacing: 0.5px;
+        }
+        .analysis-block {
+            margin-bottom: 16px;
+        }
+        .analysis-block:last-child { margin-bottom: 0; }
+        .analysis-block .block-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text2);
+            padding-bottom: 4px;
+            border-bottom: 1px solid rgba(74,158,224,0.08);
+            margin-bottom: 8px;
+        }
+        .analysis-item {
+            font-size: 14px;
+            padding: 6px 0;
+            line-height: 1.5;
+            color: var(--text2);
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+        .analysis-item .tag {
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 1px 12px;
+            border-radius: 12px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .tag-bull { background: rgba(61,191,140,0.15); color: #86efac; }
+        .tag-bear { background: rgba(224,82,82,0.15); color: #fca5a5; }
+        .tag-neutral { background: rgba(74,158,224,0.12); color: #93c5fd; }
+        .tag-warn { background: rgba(248,81,73,0.20); color: #fca5a5; }
+        .tag-info { background: rgba(74,158,224,0.12); color: #93c5fd; }
+        .tag-iv { background: rgba(248,81,73,0.15); color: #f9a8a8; }
+        .tag-gamma { background: rgba(163,113,247,0.15); color: #b085f5; }
+        .tag-advice { background: rgba(74,158,224,0.10); color: var(--primary-light); }
+        .analysis-item .text { flex: 1; }
 
         /* ===== 顏色工具 ===== */
         .red { color: var(--red); }
@@ -212,108 +363,12 @@
         .pos { color: var(--red); }
         .neg { color: var(--green); }
 
-        /* ===== 壓力支撐評級表（水平長條） ===== */
-        .rating-container {
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px 18px;
-            margin-bottom: 20px;
-        }
-        .rating-container .rating-title {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--primary-light);
-            margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .rating-container .rating-title small {
-            font-size: 12px;
-            font-weight: 400;
-            color: var(--text3);
-        }
-        .rating-row {
-            display: flex;
-            align-items: center;
-            padding: 6px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            gap: 10px;
-        }
-        .rating-row:last-child { border-bottom: none; }
-        .rating-row .label {
-            flex: 0 0 120px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            font-weight: 500;
-            white-space: nowrap;
-        }
-        .rating-row .label .emoji { margin-right: 4px; }
-        .rating-row .bar-wrap {
-            flex: 1;
-            height: 24px;
-            border-radius: 4px;
-            overflow: hidden;
-            background: rgba(255,255,255,0.04);
-            position: relative;
-            min-width: 60px;
-        }
-        .rating-row .bar-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 0.4s;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding-right: 8px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            font-weight: 600;
-            color: #fff;
-            text-shadow: 0 0 6px rgba(0,0,0,0.5);
-            white-space: nowrap;
-        }
-        .bar-fill.pressure {
-            background: linear-gradient(90deg, #ff7a5a, #e05252);
-        }
-        .bar-fill.strong-pressure {
-            background: linear-gradient(90deg, #ff4d4d, #cc2222);
-            box-shadow: 0 0 12px rgba(224,82,82,0.3);
-        }
-        .bar-fill.support {
-            background: linear-gradient(90deg, #4ddb9a, #3DBF8C);
-        }
-        .bar-fill.strong-support {
-            background: linear-gradient(90deg, #2ecc71, #1a9c5a);
-            box-shadow: 0 0 12px rgba(61,191,140,0.3);
-        }
-        .rating-row .dist {
-            flex: 0 0 80px;
-            text-align: right;
-            font-size: 12px;
-            color: var(--text3);
-            font-family: 'JetBrains Mono', monospace;
-        }
-        .rating-row.spot-row {
-            background: var(--primary-dim);
-            border-radius: 4px;
-            padding: 8px 10px;
-            margin: 4px 0;
-            border-left: 3px solid var(--primary-light);
-        }
-        .rating-row.spot-row .label {
-            font-weight: 700;
-            color: var(--primary-light);
-        }
-
-        /* ===== 能量條（選擇權壓力表） ===== */
+        /* ===== 能量條 (選擇權壓力表) ===== */
         .energy-container {
             display: flex;
             flex-direction: column;
             gap: 6px;
-            margin-top: 10px;
+            margin-top: 4px;
         }
         .energy-row {
             display: flex;
@@ -453,98 +508,6 @@
             color: #5cdba3;
         }
 
-        /* ===== 市場結構與策略卡片 ===== */
-        .analysis-card {
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 20px 22px;
-            margin-top: 16px;
-            transition: border-color 0.2s;
-        }
-        .analysis-card:hover {
-            border-color: var(--border2);
-        }
-        .analysis-card .card-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-        .analysis-card .card-header h3 {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--primary-light);
-            letter-spacing: 0.5px;
-        }
-        .analysis-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-        }
-        @media (max-width: 640px) {
-            .analysis-grid { grid-template-columns: 1fr; }
-        }
-        .analysis-item-box {
-            background: var(--bg3);
-            border-radius: 6px;
-            padding: 12px 14px;
-            border-left: 3px solid var(--primary);
-        }
-        .analysis-item-box .item-label {
-            font-size: 11px;
-            color: var(--text3);
-            font-weight: 400;
-            letter-spacing: 0.3px;
-            margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .analysis-item-box .item-value {
-            font-size: 15px;
-            font-weight: 500;
-            color: var(--text);
-            line-height: 1.4;
-        }
-        .analysis-item-box .item-value .tag {
-            display: inline-block;
-            font-size: 12px;
-            font-weight: 600;
-            padding: 1px 12px;
-            border-radius: 12px;
-            margin-left: 6px;
-        }
-        .tag-bull { background: rgba(61,191,140,0.15); color: #86efac; }
-        .tag-bear { background: rgba(224,82,82,0.15); color: #fca5a5; }
-        .tag-neutral { background: rgba(74,158,224,0.12); color: #93c5fd; }
-        .tag-warn { background: rgba(248,81,73,0.20); color: #fca5a5; }
-        .tag-info { background: rgba(74,158,224,0.12); color: #93c5fd; }
-
-        .analysis-full {
-            grid-column: 1 / -1;
-        }
-
-        /* ===== 美股市場網格 ===== */
-        .market-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 10px;
-        }
-        .market-grid .card {
-            padding: 12px 14px;
-        }
-        .market-grid .card .big {
-            font-size: 20px;
-        }
-        .market-grid .card h3 {
-            font-size: 11px;
-        }
-        .market-grid .card .sub {
-            font-size: 12px;
-        }
-
         /* ===== 表格 ===== */
         .table-wrap {
             overflow-x: auto;
@@ -620,7 +583,7 @@
             border-color: var(--primary-light);
         }
 
-        /* ===== 圖表容器 ===== */
+        /* ===== 圖表 ===== */
         .chart-box {
             height: 240px;
             background: var(--bg2);
@@ -661,14 +624,16 @@
             .section { padding: 14px 16px; }
             .summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
             .card .big { font-size: 24px; }
+            .market-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+            .market-item .m-price { font-size: 17px; }
             .energy-center { padding: 0 8px; min-width: 60px; }
             .energy-price { font-size: 13px; }
-            .rating-row .label { flex: 0 0 80px; font-size: 12px; }
-            .rating-row .dist { flex: 0 0 60px; font-size: 11px; }
-            .market-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+            .rating-item { font-size: 13px; flex-wrap: wrap; }
+            .rating-item .dist { font-size: 12px; }
         }
         @media (max-width: 400px) {
             .summary-grid { grid-template-columns: 1fr; }
+            .market-grid { grid-template-columns: 1fr 1fr; }
         }
     </style>
 </head>
@@ -691,8 +656,12 @@
     <button class="tab" data-tab="sr">選擇權壓力表</button>
 </div>
 
-<!-- ===== 首頁 ===== -->
+<!-- ========================================================= -->
+<!-- 首頁 -->
+<!-- ========================================================= -->
 <div id="home" class="section active">
+
+    <!-- 1. NQ 關鍵價位 -->
     <div class="section-title">📋 NQ 關鍵價位 <span class="badge">即時</span></div>
     <div class="summary-grid">
         <div class="card"><h3>🔴 最大壓力</h3><div class="big red" id="mResist">-</div><div class="sub" id="mResistOI"></div></div>
@@ -701,28 +670,20 @@
         <div class="card"><h3>📈 NQ 參考價</h3><div class="big" id="mRef">⏳</div><div class="sub" id="mPos"></div></div>
     </div>
 
-    <!-- 壓力支撐評級表（水平長條） -->
-    <div class="rating-container" id="ratingContainer">
-        <div class="rating-title">📊 壓力支撐評級表 <small>｜條寬 = 未平倉量</small></div>
-        <div id="ratingRows">
-            <div style="color:var(--text3); padding:12px 0; text-align:center;">⏳ 等待數據載入...</div>
-        </div>
+    <!-- 2. 美股市場概覽 -->
+    <div class="section-title" style="margin-top:4px;">📊 美股市場概覽</div>
+    <div class="market-grid" id="marketCards">
+        <div class="market-item" style="grid-column:1/-1;text-align:center;color:var(--text3);">⏳ 美股市場數據等待爬蟲寫入</div>
     </div>
 
-    <!-- 市場結構與策略 -->
+    <!-- 3. 市場結構與策略參考 (條列式) -->
     <div class="analysis-card" id="analysisCard">
         <div class="card-header">
             <h3>🧠 市場結構與策略參考</h3>
         </div>
-        <div id="analysisContent" style="min-height:60px;">
+        <div id="analysisContent">
             <div style="color:var(--text3);">載入中...</div>
         </div>
-    </div>
-
-    <!-- 美股市場 -->
-    <div class="section-title" style="margin-top:28px;">📊 美股市場總覽</div>
-    <div class="market-grid" id="marketCards">
-        <div class="card" style="grid-column:1/-1;text-align:center;color:var(--text3);">⏳ 美股市場數據等待爬蟲寫入</div>
     </div>
 
     <!-- 複製列 -->
@@ -737,7 +698,9 @@
     <div class="update-time" id="updateTime">最後更新：載入中...</div>
 </div>
 
-<!-- ===== 籌碼增減 ===== -->
+<!-- ========================================================= -->
+<!-- 籌碼增減 -->
+<!-- ========================================================= -->
 <div id="chips" class="section">
     <div class="section-title">📊 每日 Call / Put OI 變化</div>
     <div style="display:flex; gap:16px; font-size:13px; color:var(--text2); margin-bottom:10px; flex-wrap:wrap;">
@@ -753,7 +716,9 @@
     </div>
 </div>
 
-<!-- ===== 累計趨勢 ===== -->
+<!-- ========================================================= -->
+<!-- 累計趨勢 -->
+<!-- ========================================================= -->
 <div id="cumulative" class="section">
     <div class="section-title">📈 累計趨勢（每日累加）</div>
     <div style="margin-bottom:12px;">
@@ -776,15 +741,28 @@
     </div>
 </div>
 
-<!-- ===== 選擇權壓力表 ===== -->
+<!-- ========================================================= -->
+<!-- 選擇權壓力表 (內含壓力支撐評級表) -->
+<!-- ========================================================= -->
 <div id="sr" class="section">
     <div class="section-title">📅 NQ 選擇權壓力表 <span class="badge">｜ 紅 = Call 壓力 ｜ 綠 = Put 支撐</span></div>
     <div style="font-size:13px; color:var(--text2); margin-bottom:12px;">
         ◀ <span style="color:#ff7a5a;">壓力(Call)</span> ｜ <span style="color:#4ddb9a;">支撐(Put)</span> ▶ ｜ 條寬 = 未平倉量
     </div>
+
+    <!-- ★★★ 壓力支撐評級表 (移入此處) ★★★ -->
+    <div class="rating-list" id="ratingList">
+        <div class="rating-title">📋 壓力支撐評級表</div>
+        <div id="ratingRows">
+            <div style="color:var(--text3); padding:8px 0; text-align:center;">⏳ 等待數據載入...</div>
+        </div>
+    </div>
+
+    <!-- 能量條 -->
     <div class="energy-container" id="srList">
         <div style="text-align:center;padding:30px;color:var(--text3);">⏳ 載入中...</div>
     </div>
+
     <div class="update-time" id="srTime">最後更新：載入中...</div>
 </div>
 
@@ -795,7 +773,7 @@
 
 <script>
     // ============================================================
-    //  核心邏輯（完全保留原有功能，僅 UI 渲染升級）
+    //  核心邏輯
     // ============================================================
 
     const SHEET_ID = "1oPHb8dhDBpoN623zU0zEpC7cuiFLCrzWmvlcZsfSYFM";
@@ -845,7 +823,7 @@
         return null;
     }
 
-    // ---- 市場數據 ----
+    // ---- 市場數據 (含美股概覽) ----
     async function loadMarket() {
         const csv = await fetchRawCSV("NQ 市場數據");
         if (!csv) { DATA.market = null; return; }
@@ -855,21 +833,45 @@
         DATA.market = { ndx: safeNum(last[1]) };
         document.getElementById('mRef').textContent = DATA.market.ndx > 0 ? DATA.market.ndx.toLocaleString() : '-';
 
+        // 美股市場概覽
         const items = [
-            ['NDX',1,2], ['SPX',3,4], ['SOX',5,6], ['VIX',7,null], ['VXN',8,null],
-            ['AAPL',9,10], ['MSFT',11,12], ['NVDA',13,14], ['NQ期貨',15,16], ['TSM',17,18]
+            ['NDX', 1, 2],
+            ['SPX', 3, 4],
+            ['SOX', 5, 6],
+            ['VIX', 7, null],
+            ['VXN', 8, null],
+            ['AAPL', 9, 10],
+            ['MSFT', 11, 12],
+            ['NVDA', 13, 14],
+            ['NQ期貨', 15, 16],
+            ['TSM', 17, 18]
         ];
-        document.getElementById('marketCards').innerHTML = items.map(([lb, vi, ci]) => {
-            const v = safeNum(last[vi]).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2});
-            let c = '';
-            if (ci && last[ci]) {
-                const cv = parseFloat(last[ci]);
-                if (!isNaN(cv) && cv !== 0) {
-                    c = `<div class="sub ${cv>0?'pos':'neg'}">${cv>0?'▲':'▼'} ${Math.abs(cv).toFixed(2)}%</div>`;
+
+        const container = document.getElementById('marketCards');
+        let html = '';
+        items.forEach(([name, priceIdx, chgIdx]) => {
+            const price = safeNum(last[priceIdx]);
+            let chg = 0;
+            let chgStr = '-';
+            let chgClass = 'flat';
+            if (chgIdx !== null && last[chgIdx] !== undefined && last[chgIdx] !== '') {
+                chg = parseFloat(last[chgIdx]);
+                if (!isNaN(chg)) {
+                    const sign = chg > 0 ? '▲' : chg < 0 ? '▼' : '';
+                    chgStr = sign + ' ' + Math.abs(chg).toFixed(2) + '%';
+                    chgClass = chg > 0 ? 'up' : chg < 0 ? 'down' : 'flat';
                 }
             }
-            return `<div class="card"><h3>${lb}</h3><div class="big">${v}</div>${c}</div>`;
-        }).join('');
+            const priceStr = price > 0 ? price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
+            html += `
+                <div class="market-item">
+                    <div class="m-name">${name}</div>
+                    <div class="m-price">${priceStr}</div>
+                    <div class="m-change ${chgClass}">${chgStr}</div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
 
         buildRatingRows();
     }
@@ -946,15 +948,16 @@
         })).filter(r => r.strike > 0);
 
         buildSRBars();
-        buildRatingRows();
+        buildRatingRows();  // 刷新評級表
         buildAnalysis();
     }
 
-    // ---- 壓力支撐評級表（水平長條） ----
+    // ---- 壓力支撐評級表 (列表式，像圖1) ----
     function buildRatingRows() {
         const container = document.getElementById('ratingRows');
+        if (!container) return;
         if (!DATA.market || !DATA.market.ndx || !DATA.sr.length) {
-            container.innerHTML = '<div style="color:var(--text3); padding:12px 0; text-align:center;">⏳ 等待數據載入...</div>';
+            container.innerHTML = '<div style="color:var(--text3); padding:8px 0; text-align:center;">⏳ 等待數據載入...</div>';
             return;
         }
         const spot = DATA.market.ndx;
@@ -968,48 +971,59 @@
         below.sort((a,b) => a.dist - b.dist);
         const topP = above.slice(0, 3);
         const topS = below.slice(0, 3);
-        const maxOI = Math.max(1, ...[...topP, ...topS].map(r => r.callOI || r.putOI || 0));
 
         let html = '';
 
-        // 壓力（上）
+        // 壓力 (上)
         topP.forEach(p => {
             const isStrong = DATA.maxCall && DATA.maxCall.strike === p.strike;
-            const oi = p.callOI || 0;
-            const pct = (oi / maxOI) * 100;
-            const label = isStrong ? '🔴 強壓' : '🟠 壓力';
             const cls = isStrong ? 'strong-pressure' : 'pressure';
-            html += `<div class="rating-row">
-                <div class="label"><span class="emoji">${isStrong ? '🔴' : '🟠'}</span> ${p.strike.toLocaleString()}</div>
-                <div class="bar-wrap"><div class="bar-fill ${cls}" style="width:${Math.max(6, pct)}%;">${oi > 0 ? fmtOI(oi) : ''}</div></div>
-                <div class="dist">+${((p.dist/spot)*100).toFixed(1)}%</div>
-            </div>`;
+            const label = isStrong ? '🔴 強壓' : '🟠 壓力';
+            const oiStr = p.callOI > 0 ? `（${fmtOI(p.callOI)}口）` : '';
+            const distStr = `+${((p.dist/spot)*100).toFixed(1)}%`;
+            html += `
+                <div class="rating-item ${cls}">
+                    <div class="left">
+                        <span class="strike">${label} ${p.strike.toLocaleString()}</span>
+                        <span class="oi">${oiStr}</span>
+                    </div>
+                    <div class="dist">距現貨 ${distStr}</div>
+                </div>
+            `;
         });
 
         // 現貨線
-        html += `<div class="rating-row spot-row">
-            <div class="label">─── 現貨 ${spot.toLocaleString()} ───</div>
-            <div class="bar-wrap" style="background:transparent;"></div>
-            <div class="dist"></div>
-        </div>`;
+        html += `
+            <div class="rating-item spot-row">
+                <div class="left">
+                    <span class="strike">─── 現貨約 ${spot.toLocaleString()} ───</span>
+                </div>
+                <div class="dist"></div>
+            </div>
+        `;
 
-        // 支撐（下）
+        // 支撐 (下)
         topS.forEach(s => {
             const isStrong = DATA.maxPut && DATA.maxPut.strike === s.strike;
-            const oi = s.putOI || 0;
-            const pct = (oi / maxOI) * 100;
             const cls = isStrong ? 'strong-support' : 'support';
-            html += `<div class="rating-row">
-                <div class="label"><span class="emoji">${isStrong ? '🟢' : '🟩'}</span> ${s.strike.toLocaleString()}</div>
-                <div class="bar-wrap"><div class="bar-fill ${cls}" style="width:${Math.max(6, pct)}%;">${oi > 0 ? fmtOI(oi) : ''}</div></div>
-                <div class="dist">-${((s.dist/spot)*100).toFixed(1)}%</div>
-            </div>`;
+            const label = isStrong ? '🟢 強撐' : '🟩 支撐';
+            const oiStr = s.putOI > 0 ? `（${fmtOI(s.putOI)}口）` : '';
+            const distStr = `-${((s.dist/spot)*100).toFixed(1)}%`;
+            html += `
+                <div class="rating-item ${cls}">
+                    <div class="left">
+                        <span class="strike">${label} ${s.strike.toLocaleString()}</span>
+                        <span class="oi">${oiStr}</span>
+                    </div>
+                    <div class="dist">距現貨 ${distStr}</div>
+                </div>
+            `;
         });
 
         container.innerHTML = html;
     }
 
-    // ---- 能量條 ----
+    // ---- 能量條 (選擇權壓力表) ----
     function buildSRBars() {
         const div = document.getElementById('srList');
         if (!DATA.sr.length) {
@@ -1057,7 +1071,7 @@
         }).join('');
     }
 
-    // ---- 市場結構分析 ----
+    // ---- 市場結構與策略參考 (條列式，像圖2) ----
     function buildAnalysis() {
         const container = document.getElementById('analysisContent');
         if (!container) return;
@@ -1068,21 +1082,21 @@
             return;
         }
 
-        // 籌碼方向
-        let directionTag = '', directionText = '';
+        // 判斷籌碼方向
+        let dirTag = '', dirText = '';
         const callChg = last.callChange, putChg = last.putChange;
         if (callChg > 0 && putChg < 0) {
-            directionTag = '<span class="tag tag-bear">偏空</span>';
-            directionText = 'Call OI 增加，Put OI 減少，市場傾向看不漲';
+            dirTag = '<span class="tag tag-bear">偏空</span>';
+            dirText = 'Call OI 增加，Put OI 減少，市場傾向看不漲';
         } else if (callChg < 0 && putChg > 0) {
-            directionTag = '<span class="tag tag-bull">偏多</span>';
-            directionText = 'Call OI 減少，Put OI 增加，市場傾向看不跌';
+            dirTag = '<span class="tag tag-bull">偏多</span>';
+            dirText = 'Call OI 減少，Put OI 增加，市場傾向看不跌';
         } else if (callChg > 0 && putChg > 0) {
-            directionTag = '<span class="tag tag-neutral">中性</span>';
-            directionText = '多空同步增加，籌碼集中度上升';
+            dirTag = '<span class="tag tag-neutral">中性</span>';
+            dirText = '多空同步增加，籌碼集中度上升';
         } else {
-            directionTag = '<span class="tag tag-neutral">觀望</span>';
-            directionText = '變化不大，等待新驅動';
+            dirTag = '<span class="tag tag-neutral">觀望</span>';
+            dirText = '變化不大，等待新驅動';
         }
 
         // Gamma 結構
@@ -1092,51 +1106,82 @@
             const diff = ((spot - DATA.zg) / DATA.zg * 100);
             if (diff > 2) {
                 gammaTag = '<span class="tag tag-bull">正 Gamma</span>';
-                gammaText = `NQ 高於 ZG（+${diff.toFixed(1)}%），波動傾向抑制`;
+                gammaText = `NQ 參考價 ${spot.toLocaleString()} 高於 ZG（+${diff.toFixed(1)}%），市場處於正 Gamma 區域，波動傾向抑制，適合區間操作。`;
             } else if (diff < -2) {
                 gammaTag = '<span class="tag tag-bear">負 Gamma</span>';
-                gammaText = `NQ 低於 ZG（${diff.toFixed(1)}%），波動可能放大`;
+                gammaText = `NQ 參考價 ${spot.toLocaleString()} 低於 ZG（${diff.toFixed(1)}%），市場處於負 Gamma 區域，波動可能放大，適合順勢操作。`;
             } else {
                 gammaTag = '<span class="tag tag-neutral">ZG 附近</span>';
-                gammaText = 'Gamma 即將翻轉，等待表態';
+                gammaText = `NQ 參考價 ${spot.toLocaleString()} 接近 ZG ${DATA.zg.toLocaleString()}，Gamma 結構即將翻轉，等待方向表態。`;
             }
         } else {
             gammaTag = '<span class="tag tag-info">等待數據</span>';
-            gammaText = `ZG ${DATA.zg.toLocaleString()}，待 NQ 價位寫入`;
+            gammaText = `Zero Gamma 位於 ${DATA.zg.toLocaleString()}，等待 NQ 市場數據寫入後將自動分析結構。`;
         }
 
         // C/P 比
         const cpRatio = last.cpRatio || 0;
         const cpTag = cpRatio > 1 ? '<span class="tag tag-bear">Call > Put</span>' : '<span class="tag tag-bull">Put > Call</span>';
+        const cpText = cpRatio > 1 ? 'Call 多於 Put，偏空結構' : 'Put 多於 Call，偏多結構';
+
+        // 波動率提醒 (模擬)
+        const ivTag = '<span class="tag tag-iv">IV 升</span>';
+        const ivText = '自營商大規模回收 SC 與 SP 賣方部位，選擇權隱含波動率 (IV) 可能急遽飆高。此環境下，買方權利金昂貴，追買選擇權需格外謹慎；同時期貨的動態停損應適度放寬 (如參考 2 倍 ATR)，避免被盤中掃停損。';
+
+        // 操作建議
+        let adviceText = '';
+        if (cpRatio > 1.1) {
+            adviceText = '法人籌碼偏空，短線壓力沉重。建議縮小部位，待趨勢明確後再積極操作。結算日當天選擇權時間價值快速收斂，盤中容易出現 Gamma 區間行情，操作上應嚴格停損。';
+        } else if (cpRatio < 0.9) {
+            adviceText = '法人籌碼偏多，下方支撐穩固。可留意拉回承接機會，但結算日當天選擇權時間價值快速收斂，盤中容易出現 Gamma 區間行情，操作上應嚴格停損。';
+        } else {
+            adviceText = '法人籌碼中性偏觀望，短線等待方向表態。建議縮小部位，待趨勢明確後再積極操作。結算日當天選擇權時間價值快速收斂，盤中容易出現 Gamma 區間行情，操作上應縮小部位、嚴格停損。';
+        }
 
         container.innerHTML = `
-            <div class="analysis-grid">
-                <div class="analysis-item-box" style="border-left-color:#E05252;">
-                    <div class="item-label">📊 籌碼方向</div>
-                    <div class="item-value">${directionTag} ${directionText}</div>
+            <div class="analysis-block">
+                <div class="block-title">📊 籌碼動向</div>
+                <div class="analysis-item">
+                    ${dirTag}
+                    <span class="text">${dirText}</span>
                 </div>
-                <div class="analysis-item-box" style="border-left-color:#b085f5;">
-                    <div class="item-label">📐 Gamma 結構</div>
-                    <div class="item-value">${gammaTag} ${gammaText}</div>
+                <div class="analysis-item">
+                    ${cpTag}
+                    <span class="text">C/P 比值：${cpRatio.toFixed(2)}（${cpText}）</span>
                 </div>
-                <div class="analysis-item-box" style="border-left-color:#4A9EE0;">
-                    <div class="item-label">📈 C/P 比值</div>
-                    <div class="item-value">${cpRatio.toFixed(2)} ${cpTag}</div>
+            </div>
+
+            <div class="analysis-block">
+                <div class="block-title">📐 Gamma 結構</div>
+                <div class="analysis-item">
+                    ${gammaTag}
+                    <span class="text">${gammaText}</span>
                 </div>
-                <div class="analysis-item-box" style="border-left-color:#ff9f7c;">
-                    <div class="item-label">🔑 關鍵價位</div>
-                    <div class="item-value">
-                        壓力 <span style="color:#ff6b6b;">${DATA.maxCall.strike.toLocaleString()}</span> ｜
-                        支撐 <span style="color:#5cdba3;">${DATA.maxPut.strike.toLocaleString()}</span>
-                    </div>
+            </div>
+
+            <div class="analysis-block">
+                <div class="block-title">🔑 關鍵價位</div>
+                <div class="analysis-item">
+                    <span class="text">最大壓力：<span style="color:#ff6b6b;">${DATA.maxCall.strike.toLocaleString()}</span>（Call OI ${fmtOI(DATA.maxCall.oi)} 口）</span>
                 </div>
-                <div class="analysis-item-box analysis-full" style="border-left-color:#3DBF8C;">
-                    <div class="item-label">💡 操作建議</div>
-                    <div class="item-value" style="font-weight:400;font-size:14px;color:var(--text2);">
-                        ${cpRatio > 1.1 ? '籌碼偏空，上方壓力沉重，留意短線回檔風險。' :
-                          cpRatio < 0.9 ? '籌碼偏多，下方支撐穩固，可留意拉回承接機會。' :
-                          '多空均衡，建議縮小部位，等待趨勢明確再積極操作。'}
-                    </div>
+                <div class="analysis-item">
+                    <span class="text">最大支撐：<span style="color:#5cdba3;">${DATA.maxPut.strike.toLocaleString()}</span>（Put OI ${fmtOI(DATA.maxPut.oi)} 口）</span>
+                </div>
+            </div>
+
+            <div class="analysis-block">
+                <div class="block-title">⚠️ 波動率提醒</div>
+                <div class="analysis-item">
+                    ${ivTag}
+                    <span class="text">${ivText}</span>
+                </div>
+            </div>
+
+            <div class="analysis-block">
+                <div class="block-title">💡 操作建議</div>
+                <div class="analysis-item">
+                    <span class="tag tag-advice">建議</span>
+                    <span class="text">${adviceText}</span>
                 </div>
             </div>
         `;
@@ -1160,7 +1205,7 @@
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { ticks: { font: { size: 10, color: '#6A645C' }, color: '#6A645C' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                    x: { ticks: { font: { size: 10, color: '#6A645C' } }, grid: { color: 'rgba(255,255,255,0.04)' } },
                     y: { ticks: { font: { size: 10, color: '#6A645C' } }, grid: { color: 'rgba(255,255,255,0.04)' } }
                 }
             }
