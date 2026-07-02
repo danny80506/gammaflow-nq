@@ -90,6 +90,7 @@ def download_barchart_csv():
         context = browser.new_context(accept_downloads=True)
         page = context.new_page()
         page.goto("https://www.barchart.com/login", wait_until="networkidle")
+        page.wait_for_selector("input[name='email']", timeout=10000)  # 等待輸入框出現
         page.fill("input[name='email']", BARCHART_USER)
         page.fill("input[type='password']", BARCHART_PASS)
         page.click("button[type='submit']")
