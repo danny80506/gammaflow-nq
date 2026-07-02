@@ -89,13 +89,24 @@ def download_barchart_csv():
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(accept_downloads=True)
         page = context.new_page()
-        page.goto("https://www.barchart.com/login", wait_until="networkidle")
-        page.wait_for_selector("input[name='email']", timeout=10000)  # 等待輸入框出現
-        page.fill("input[name='email']", BARCHART_USER)
-        page.fill("input[type='password']", BARCHART_PASS)
-        page.click("button[type='submit']")
-        page.wait_for_load_state("networkidle")
-        print("✅ 已登入")
+        # 登入流程
+        page.goto("https://www.barchart.com/login", wait_until="domcontentloaded")
+        time.sleep(3)  # 等待頁面完全渲染
+        try:
+            page.wait_for_selector("input[name='email']", state="visible", timeout=90000)
+            page.fill("input[name='email']", BARCHART_USER)
+            page.fill("input[type='password']", BARCHART_PASS)
+            page.click("button[type='submit']")
+            # 等待登入成功（檢查 URL 或特定元素）
+            page.wait_for_url("**/my/**", timeout=15000)
+            print("✅ 已登入")
+        except Exception as e:
+            print(f"⚠️ 自動登入異常：{e}")
+            print(f"目前頁面標題：{page.title()}")
+            raise e  # 登入失敗就拋出錯誤，停止執行
+
+        # 登入成功後下載 CSV
+        success = False
         try:
             with page.expect_download(timeout=15000) as download_info:
                 page.goto(download_url)
@@ -106,8 +117,9 @@ def download_barchart_csv():
             success = True
         except Exception as e:
             print(f"❌ 直接下載失敗: {e}")
-            success = False
+
         browser.close()
+
         if not success:
             if os.path.exists(local_csv):
                 print("✅ 回退使用本地 CSV")
