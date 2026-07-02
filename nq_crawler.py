@@ -72,60 +72,15 @@ def is_us_market_open():
 
 # ---------- 1. 下載 CSV ----------
 def download_barchart_csv():
+    # 一律使用倉庫中的 nq_options.csv（由你手動上傳最新檔案）
     local_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nq_options.csv")
     if os.path.exists(local_csv):
         print(f"✅ 使用本地 CSV: {local_csv}")
         return local_csv
-    if not BARCHART_USER or not BARCHART_PASS:
-        raise FileNotFoundError("請上傳 nq_options.csv 或設定 Barchart 帳號")
-    os.makedirs(CSV_DOWNLOAD_DIR, exist_ok=True)
-    contract = get_current_nq_contract()
-    print(f"📅 當前合約: {contract['symbol']}（到期日: {contract['expiry']}）")
-    download_url = (
-        f"https://www.barchart.com/futures/quotes/{contract['symbol']}/"
-        f"options/{contract['month_str']}?futuresOptionsView=merged&moneyness=allRows"
-    )
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(accept_downloads=True)
-        page = context.new_page()
-        # 登入流程
-        page.goto("https://www.barchart.com/login", wait_until="domcontentloaded")
-        time.sleep(3)  # 等待頁面完全渲染
-        try:
-            page.wait_for_selector("input[name='email']", state="visible", timeout=90000)
-            page.fill("input[name='email']", BARCHART_USER)
-            page.fill("input[type='password']", BARCHART_PASS)
-            page.click("button[type='submit']")
-            # 等待登入成功（檢查 URL 或特定元素）
-            page.wait_for_url("**/my/**", timeout=15000)
-            print("✅ 已登入")
-        except Exception as e:
-            print(f"⚠️ 自動登入異常：{e}")
-            print(f"目前頁面標題：{page.title()}")
-            raise e  # 登入失敗就拋出錯誤，停止執行
-
-        # 登入成功後下載 CSV
-        success = False
-        try:
-            with page.expect_download(timeout=15000) as download_info:
-                page.goto(download_url)
-            download = download_info.value
-            csv_path = os.path.join(CSV_DOWNLOAD_DIR, "nq_options.csv")
-            download.save_as(csv_path)
-            print(f"✅ CSV 已下載至 {csv_path}")
-            success = True
-        except Exception as e:
-            print(f"❌ 直接下載失敗: {e}")
-
-        browser.close()
-
-        if not success:
-            if os.path.exists(local_csv):
-                print("✅ 回退使用本地 CSV")
-                return local_csv
-            raise RuntimeError("自動下載失敗，且無本地 CSV")
-    return csv_path
+    else:
+        raise FileNotFoundError(
+            "找不到 nq_options.csv！請將從 Barchart 下載的最新 CSV 命名為 nq_options.csv 並上傳到 GitHub 倉庫根目錄。"
+        )
 
 # ---------- 2. 解析 CSV ----------
 def parse_barchart_csv(file_path):
