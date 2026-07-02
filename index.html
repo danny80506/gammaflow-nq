@@ -5,407 +5,1232 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>GammaFlow NQ · 那斯達克選擇權儀表板</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #4A9EE0; --primary-light: #6BB5F0; --red: #E05252; --green: #3DBF8C; --bg: #111318; --bg2: #181C23; --bg3: #1E232D; --border: rgba(74,158,224,0.15); --border2: rgba(74,158,224,0.3); --text: #F0ECE6; --text2: #ADA89A; --text3: #6B655C; --purple: #b085f5; }
+        /* ===== 全域 ===== */
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); font-size: 16px; padding-bottom: 20px; }
-        .header { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg2); }
-        .header h1 { font-family: 'JetBrains Mono', monospace; font-size: 22px; color: var(--primary-light); }
-        .header-sub { font-size: 12px; color: var(--text2); }
-        .refresh-btn { background: transparent; border: 1px solid var(--border2); border-radius: 4px; padding: 6px 14px; cursor: pointer; color: var(--primary-light); font-size: 13px; }
-        .main-tabs { display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto; border-bottom: 1px solid var(--border); }
-        .main-tabs .tab { padding: 8px 18px; font-family: 'JetBrains Mono', monospace; font-size: 14px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: transparent; color: var(--text2); white-space: nowrap; }
-        .main-tabs .tab.active { background: rgba(74,158,224,0.12); color: var(--primary-light); border-color: var(--border2); }
-        .section { display: none; padding: 16px; }
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: #0C0F15;
+            color: #EAE6E0;
+            font-size: 16px;
+            padding-bottom: 30px;
+        }
+
+        /* ===== 藍色系主題 ===== */
+        :root {
+            --primary: #4A9EE0;
+            --primary-light: #6BB5F0;
+            --primary-dim: rgba(74, 158, 224, 0.15);
+            --primary-glow: rgba(74, 158, 224, 0.25);
+            --bg: #0C0F15;
+            --bg2: #131820;
+            --bg3: #1A222E;
+            --border: rgba(74, 158, 224, 0.12);
+            --border2: rgba(74, 158, 224, 0.25);
+            --text: #EAE6E0;
+            --text2: #AFA9A0;
+            --text3: #6A645C;
+            --red: #E05252;
+            --green: #3DBF8C;
+            --purple: #b085f5;
+            --red-glow: rgba(224, 82, 82, 0.25);
+            --green-glow: rgba(61, 191, 140, 0.20);
+        }
+
+        /* ===== 捲軸 ===== */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+        /* ===== 頂欄 ===== */
+        .header {
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg2);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .header-left {
+            display: flex;
+            align-items: baseline;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .header h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 26px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #4A9EE0 0%, #7FC4F5 60%, #A8D8FF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(74, 158, 224, 0.20);
+            letter-spacing: 0.5px;
+        }
+        .header-sub {
+            font-size: 13px;
+            color: var(--text2);
+            background: var(--bg3);
+            padding: 4px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            font-weight: 400;
+        }
+        .refresh-btn {
+            background: transparent;
+            border: 1px solid var(--border2);
+            border-radius: 6px;
+            padding: 8px 20px;
+            cursor: pointer;
+            color: var(--primary-light);
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.25s;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .refresh-btn:hover {
+            background: var(--primary-dim);
+            border-color: var(--primary-light);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        /* ===== 標籤頁 ===== */
+        .main-tabs {
+            display: flex;
+            gap: 6px;
+            padding: 14px 24px;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+        }
+        .main-tabs .tab {
+            padding: 8px 22px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            background: transparent;
+            color: var(--text2);
+            white-space: nowrap;
+            transition: all 0.25s;
+        }
+        .main-tabs .tab:hover {
+            border-color: var(--border2);
+            color: var(--text);
+        }
+        .main-tabs .tab.active {
+            background: var(--primary-dim);
+            color: var(--primary-light);
+            border-color: var(--border2);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        /* ===== 區塊 ===== */
+        .section { display: none; padding: 20px 24px; }
         .section.active { display: block; }
-        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 18px; }
-        .card.full { grid-column: 1 / -1; overflow-x: auto; }
-        .card h3 { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text3); margin-bottom: 8px; }
-        .card .big { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; }
-        .card .sub { font-size: 13px; color: var(--text2); margin-top: 6px; }
-        .red { color: var(--red); } .green { color: var(--green); } .purple { color: var(--purple); }
-        .section-title { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--text2); margin: 12px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-        .rating-table { width: 100%; font-size: 13px; border-collapse: collapse; margin-bottom: 16px; background: var(--bg2); border-radius: 4px; overflow: hidden; }
-        .rating-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); }
-        .rating-table .pressure { color: #ff8c8c; } .rating-table .support { color: #8ce0a0; }
-        .rating-table .strong-pressure { color: #ff4444; font-weight: 700; } .rating-table .strong-support { color: #44dd44; font-weight: 700; }
-        .rating-table .spot-row td { background: rgba(74,158,224,0.08); font-weight: 700; color: var(--primary-light); }
-        .table-wrap { overflow-x: auto; }
-        table { width: 100%; font-size: 12px; border-collapse: collapse; min-width: 600px; background: var(--bg2); }
-        th { padding: 8px 6px; color: var(--text); font-size: 11px; border-bottom: 1px solid var(--border); text-align: center; background: var(--bg3); }
-        td { padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.04); text-align: center; color: var(--text); }
-        .pos { color: var(--red); } .neg { color: var(--green); }
-        .chart-legend { display: flex; gap: 10px; font-size: 12px; color: var(--text2); margin-bottom: 8px; }
-        .ld { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
-        .energy-container { display: flex; flex-direction: column; gap: 6px; }
-        .energy-row { display: flex; align-items: stretch; height: 34px; background: rgba(255,255,255,0.02); border-radius: 4px; border: 1px solid rgba(255,255,255,0.04); }
-        .energy-row.is-zg { background: rgba(163,113,247,0.10); border-color: rgba(163,113,247,0.20); }
-        .energy-row.is-maxc { background: rgba(224,82,82,0.07); }
-        .energy-row.is-maxp { background: rgba(61,191,140,0.07); }
-        .energy-left { flex: 1; display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; }
-        .energy-left .bar-track { width: 100%; height: 20px; border-radius: 3px 0 0 3px; background: rgba(224,82,82,0.08); overflow: hidden; direction: rtl; }
-        .energy-left .bar-fill { height: 100%; border-radius: 3px 0 0 3px; background: linear-gradient(90deg, #ff6b6b, #e05252); display: flex; align-items: center; justify-content: center; min-width: 28px; direction: ltr; }
-        .energy-right { flex: 1; display: flex; align-items: center; padding-left: 4px; }
-        .energy-right .bar-track { width: 100%; height: 20px; border-radius: 0 3px 3px 0; background: rgba(61,191,140,0.08); overflow: hidden; }
-        .energy-right .bar-fill { height: 100%; border-radius: 0 3px 3px 0; background: linear-gradient(270deg, #5cdba3, #3DBF8C); display: flex; align-items: center; justify-content: center; min-width: 28px; }
-        .bar-value { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; color: #fff; white-space: nowrap; }
-        .energy-center { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 8px; min-width: 70px; }
-        .energy-price { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--primary-light); }
-        .energy-tags { display: flex; gap: 3px; }
-        .energy-tag { font-family: 'JetBrains Mono', monospace; font-size: 8px; padding: 1px 5px; border-radius: 2px; background: rgba(255,255,255,0.06); color: var(--text3); }
-        .energy-tag.zg { background: rgba(163,113,247,0.20); color: var(--purple); }
-        .update-time { text-align: center; font-size: 13px; color: var(--text3); padding: 16px; border-top: 1px solid var(--border); margin-top: 20px; }
-        .copy-row { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
-        .copy-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 10px 14px; color: var(--text); font-size: 13px; font-family: 'JetBrains Mono', monospace; }
-        .copy-btn { background: transparent; border: 1px solid var(--border2); border-radius: 4px; padding: 10px 16px; color: var(--primary-light); font-size: 14px; cursor: pointer; }
-        /* 分析卡片样式 */
-        .analysis-card { border-left: 4px solid var(--primary); background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 20px; margin-top: 16px; }
-        .analysis-card h3 { font-family: 'JetBrains Mono', monospace; font-size: 16px; color: var(--primary-light); letter-spacing: 1px; margin-bottom: 14px; }
-        .analysis-block { margin-bottom: 18px; }
-        .analysis-block h4 { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--primary-dim); margin-bottom: 8px; border-bottom: 1px solid rgba(74,158,224,0.08); padding-bottom: 6px; }
-        .analysis-item { font-size: 15px; padding: 8px 0; line-height: 1.5; border-bottom: 1px solid rgba(74,158,224,0.04); color: var(--text2); }
-        .analysis-item:last-child { border-bottom: none; }
-        .analysis-item.warn { color: #ff9f7c; }
-        .analysis-item.info { color: #b0c4de; }
-        .analysis-item.bull { color: #8be0a0; }
-        .analysis-item.bear { color: #f9a8a8; }
-        .analysis-tag { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 2px 10px; border-radius: 2px; margin-right: 8px; font-weight: 600; letter-spacing: 0.5px; }
-        .tag-warn { background: rgba(248,81,73,0.25); color: #fca5a5; }
-        .tag-info { background: rgba(74,158,224,0.15); color: #93c5fd; }
+        .section-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--primary-light);
+            margin: 0 0 14px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title .badge {
+            font-size: 11px;
+            background: var(--bg3);
+            padding: 2px 12px;
+            border-radius: 12px;
+            color: var(--text2);
+            font-weight: 400;
+        }
+
+        /* ===== 卡片通用 ===== */
+        .card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px 20px;
+            transition: border-color 0.2s;
+        }
+        .card:hover {
+            border-color: var(--border2);
+        }
+        .card h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text3);
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+            font-weight: 400;
+        }
+        .card .big {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 30px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .card .sub {
+            font-size: 13px;
+            color: var(--text2);
+            margin-top: 4px;
+        }
+        .card .sub .tag-sm {
+            display: inline-block;
+            font-size: 11px;
+            padding: 1px 10px;
+            border-radius: 10px;
+            background: var(--bg3);
+            margin-left: 6px;
+        }
+
+        /* ===== 摘要網格 ===== */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .summary-grid .card.full {
+            grid-column: 1 / -1;
+        }
+
+        /* ===== 顏色工具 ===== */
+        .red { color: var(--red); }
+        .green { color: var(--green); }
+        .purple { color: var(--purple); }
+        .pos { color: var(--red); }
+        .neg { color: var(--green); }
+
+        /* ===== 壓力支撐評級表（水平長條） ===== */
+        .rating-container {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 18px;
+            margin-bottom: 20px;
+        }
+        .rating-container .rating-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary-light);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .rating-container .rating-title small {
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--text3);
+        }
+        .rating-row {
+            display: flex;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            gap: 10px;
+        }
+        .rating-row:last-child { border-bottom: none; }
+        .rating-row .label {
+            flex: 0 0 120px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .rating-row .label .emoji { margin-right: 4px; }
+        .rating-row .bar-wrap {
+            flex: 1;
+            height: 24px;
+            border-radius: 4px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.04);
+            position: relative;
+            min-width: 60px;
+        }
+        .rating-row .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.4s;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            color: #fff;
+            text-shadow: 0 0 6px rgba(0,0,0,0.5);
+            white-space: nowrap;
+        }
+        .bar-fill.pressure {
+            background: linear-gradient(90deg, #ff7a5a, #e05252);
+        }
+        .bar-fill.strong-pressure {
+            background: linear-gradient(90deg, #ff4d4d, #cc2222);
+            box-shadow: 0 0 12px rgba(224,82,82,0.3);
+        }
+        .bar-fill.support {
+            background: linear-gradient(90deg, #4ddb9a, #3DBF8C);
+        }
+        .bar-fill.strong-support {
+            background: linear-gradient(90deg, #2ecc71, #1a9c5a);
+            box-shadow: 0 0 12px rgba(61,191,140,0.3);
+        }
+        .rating-row .dist {
+            flex: 0 0 80px;
+            text-align: right;
+            font-size: 12px;
+            color: var(--text3);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .rating-row.spot-row {
+            background: var(--primary-dim);
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin: 4px 0;
+            border-left: 3px solid var(--primary-light);
+        }
+        .rating-row.spot-row .label {
+            font-weight: 700;
+            color: var(--primary-light);
+        }
+
+        /* ===== 能量條（選擇權壓力表） ===== */
+        .energy-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 10px;
+        }
+        .energy-row {
+            display: flex;
+            align-items: stretch;
+            height: 38px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.04);
+            transition: border-color 0.2s;
+        }
+        .energy-row:hover {
+            border-color: var(--border2);
+        }
+        .energy-row.is-zg {
+            background: rgba(163,113,247,0.08);
+            border-color: rgba(163,113,247,0.20);
+        }
+        .energy-row.is-maxc {
+            background: rgba(224,82,82,0.07);
+            border-color: rgba(224,82,82,0.15);
+        }
+        .energy-row.is-maxp {
+            background: rgba(61,191,140,0.07);
+            border-color: rgba(61,191,140,0.15);
+        }
+
+        .energy-left {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 4px;
+        }
+        .energy-left .bar-track {
+            width: 100%;
+            height: 26px;
+            border-radius: 4px 0 0 4px;
+            background: rgba(224,82,82,0.08);
+            overflow: hidden;
+            direction: rtl;
+        }
+        .energy-left .bar-fill {
+            height: 100%;
+            border-radius: 4px 0 0 4px;
+            background: linear-gradient(90deg, #ff7a5a, #e05252);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 30px;
+            direction: ltr;
+            transition: width 0.4s;
+        }
+        .energy-left .bar-fill.strong {
+            background: linear-gradient(90deg, #ff4d4d, #cc2222);
+            box-shadow: 0 0 16px rgba(224,82,82,0.25);
+        }
+
+        .energy-right {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            padding-left: 4px;
+        }
+        .energy-right .bar-track {
+            width: 100%;
+            height: 26px;
+            border-radius: 0 4px 4px 0;
+            background: rgba(61,191,140,0.08);
+            overflow: hidden;
+        }
+        .energy-right .bar-fill {
+            height: 100%;
+            border-radius: 0 4px 4px 0;
+            background: linear-gradient(270deg, #4ddb9a, #3DBF8C);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 30px;
+            transition: width 0.4s;
+        }
+        .energy-right .bar-fill.strong {
+            background: linear-gradient(270deg, #2ecc71, #1a9c5a);
+            box-shadow: 0 0 16px rgba(61,191,140,0.25);
+        }
+
+        .bar-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            color: #fff;
+            text-shadow: 0 0 8px rgba(0,0,0,0.6);
+            white-space: nowrap;
+            padding: 0 4px;
+        }
+
+        .energy-center {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0 12px;
+            min-width: 80px;
+        }
+        .energy-price {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--primary-light);
+            line-height: 1.2;
+        }
+        .energy-tags {
+            display: flex;
+            gap: 4px;
+            margin-top: 2px;
+        }
+        .energy-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 8px;
+            font-weight: 600;
+            padding: 1px 8px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.06);
+            color: var(--text3);
+            letter-spacing: 0.3px;
+        }
+        .energy-tag.zg {
+            background: rgba(163,113,247,0.20);
+            color: var(--purple);
+        }
+        .energy-tag.maxc {
+            background: rgba(224,82,82,0.20);
+            color: #ff6b6b;
+        }
+        .energy-tag.maxp {
+            background: rgba(61,191,140,0.20);
+            color: #5cdba3;
+        }
+
+        /* ===== 市場結構與策略卡片 ===== */
+        .analysis-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px 22px;
+            margin-top: 16px;
+            transition: border-color 0.2s;
+        }
+        .analysis-card:hover {
+            border-color: var(--border2);
+        }
+        .analysis-card .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .analysis-card .card-header h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary-light);
+            letter-spacing: 0.5px;
+        }
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        @media (max-width: 640px) {
+            .analysis-grid { grid-template-columns: 1fr; }
+        }
+        .analysis-item-box {
+            background: var(--bg3);
+            border-radius: 6px;
+            padding: 12px 14px;
+            border-left: 3px solid var(--primary);
+        }
+        .analysis-item-box .item-label {
+            font-size: 11px;
+            color: var(--text3);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .analysis-item-box .item-value {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text);
+            line-height: 1.4;
+        }
+        .analysis-item-box .item-value .tag {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 1px 12px;
+            border-radius: 12px;
+            margin-left: 6px;
+        }
         .tag-bull { background: rgba(61,191,140,0.15); color: #86efac; }
-        .tag-bear { background: rgba(248,81,73,0.15); color: #fca5a5; }
+        .tag-bear { background: rgba(224,82,82,0.15); color: #fca5a5; }
+        .tag-neutral { background: rgba(74,158,224,0.12); color: #93c5fd; }
+        .tag-warn { background: rgba(248,81,73,0.20); color: #fca5a5; }
+        .tag-info { background: rgba(74,158,224,0.12); color: #93c5fd; }
+
+        .analysis-full {
+            grid-column: 1 / -1;
+        }
+
+        /* ===== 美股市場網格 ===== */
+        .market-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+        }
+        .market-grid .card {
+            padding: 12px 14px;
+        }
+        .market-grid .card .big {
+            font-size: 20px;
+        }
+        .market-grid .card h3 {
+            font-size: 11px;
+        }
+        .market-grid .card .sub {
+            font-size: 12px;
+        }
+
+        /* ===== 表格 ===== */
+        .table-wrap {
+            overflow-x: auto;
+            margin-top: 14px;
+        }
+        .table-wrap table {
+            width: 100%;
+            font-size: 12px;
+            border-collapse: collapse;
+            min-width: 500px;
+            background: var(--bg2);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .table-wrap th {
+            padding: 10px 8px;
+            color: var(--text2);
+            font-size: 11px;
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+            text-align: center;
+            background: var(--bg3);
+        }
+        .table-wrap td {
+            padding: 8px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            text-align: center;
+            color: var(--text);
+            font-size: 12px;
+        }
+        .table-wrap tr:hover td {
+            background: rgba(255,255,255,0.02);
+        }
+
+        /* ===== 複製列 ===== */
+        .copy-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+        .copy-input {
+            flex: 1;
+            min-width: 200px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 10px 14px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+            outline: none;
+        }
+        .copy-input:focus {
+            border-color: var(--border2);
+            box-shadow: 0 0 12px var(--primary-glow);
+        }
+        .copy-btn {
+            background: transparent;
+            border: 1px solid var(--border2);
+            border-radius: 4px;
+            padding: 10px 20px;
+            color: var(--primary-light);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+        }
+        .copy-btn:hover {
+            background: var(--primary-dim);
+            border-color: var(--primary-light);
+        }
+
+        /* ===== 圖表容器 ===== */
+        .chart-box {
+            height: 240px;
+            background: var(--bg2);
+            border-radius: 6px;
+            padding: 6px;
+        }
+
+        /* ===== 更新時間 & 免責 ===== */
+        .update-time {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text3);
+            padding: 16px 0 6px 0;
+            border-top: 1px solid var(--border);
+            margin-top: 24px;
+        }
+        .footer-disclaimer {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text3);
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            margin-top: 30px;
+            background: var(--bg2);
+            line-height: 1.6;
+            letter-spacing: 0.3px;
+        }
+        .footer-disclaimer strong {
+            color: var(--text2);
+            font-weight: 500;
+        }
+
+        /* ===== 回應式 ===== */
+        @media (max-width: 600px) {
+            .header { padding: 12px 16px; }
+            .header h1 { font-size: 20px; }
+            .main-tabs { padding: 10px 16px; }
+            .section { padding: 14px 16px; }
+            .summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .card .big { font-size: 24px; }
+            .energy-center { padding: 0 8px; min-width: 60px; }
+            .energy-price { font-size: 13px; }
+            .rating-row .label { flex: 0 0 80px; font-size: 12px; }
+            .rating-row .dist { flex: 0 0 60px; font-size: 11px; }
+            .market-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+        }
+        @media (max-width: 400px) {
+            .summary-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div><h1>GammaFlow NQ</h1><span class="header-sub" id="statusText">載入中...</span></div>
-        <button class="refresh-btn" onclick="loadAll()">⟳ 更新</button>
+
+<!-- ===== 頂欄 ===== -->
+<div class="header">
+    <div class="header-left">
+        <h1>GammaFlow NQ</h1>
+        <span class="header-sub" id="statusText">載入中...</span>
     </div>
-    <div class="main-tabs" id="tabBar">
-        <button class="tab active" data-tab="home">首頁</button>
-        <button class="tab" data-tab="chips">籌碼增減</button>
-        <button class="tab" data-tab="cumulative">累計趨勢</button>
-        <button class="tab" data-tab="sr">選擇權壓力表</button>
+    <button class="refresh-btn" onclick="loadAll()">⟳ 更新</button>
+</div>
+
+<!-- ===== 標籤頁 ===== -->
+<div class="main-tabs" id="tabBar">
+    <button class="tab active" data-tab="home">首頁</button>
+    <button class="tab" data-tab="chips">籌碼增減</button>
+    <button class="tab" data-tab="cumulative">累計趨勢</button>
+    <button class="tab" data-tab="sr">選擇權壓力表</button>
+</div>
+
+<!-- ===== 首頁 ===== -->
+<div id="home" class="section active">
+    <div class="section-title">📋 NQ 關鍵價位 <span class="badge">即時</span></div>
+    <div class="summary-grid">
+        <div class="card"><h3>🔴 最大壓力</h3><div class="big red" id="mResist">-</div><div class="sub" id="mResistOI"></div></div>
+        <div class="card"><h3>🟢 最大支撐</h3><div class="big green" id="mSupport">-</div><div class="sub" id="mSupportOI"></div></div>
+        <div class="card"><h3>⚡ Zero Gamma</h3><div class="big purple" id="mZG">-</div><div class="sub">多空分界</div></div>
+        <div class="card"><h3>📈 NQ 參考價</h3><div class="big" id="mRef">⏳</div><div class="sub" id="mPos"></div></div>
     </div>
-    <div id="home" class="section active">
-        <div class="section-title">📋 NQ 關鍵價位</div>
-        <div class="summary-grid">
-            <div class="card"><h3>🔴 最大壓力</h3><div class="big red" id="mResist">-</div><div class="sub" id="mResistOI"></div></div>
-            <div class="card"><h3>🟢 最大支撐</h3><div class="big green" id="mSupport">-</div><div class="sub" id="mSupportOI"></div></div>
-            <div class="card"><h3>⚡ Zero Gamma</h3><div class="big purple" id="mZG">-</div><div class="sub">多空分界</div></div>
-            <div class="card"><h3>📈 NQ 參考價</h3><div class="big" id="mRef">⏳</div><div class="sub" id="mPos"></div></div>
+
+    <!-- 壓力支撐評級表（水平長條） -->
+    <div class="rating-container" id="ratingContainer">
+        <div class="rating-title">📊 壓力支撐評級表 <small>｜條寬 = 未平倉量</small></div>
+        <div id="ratingRows">
+            <div style="color:var(--text3); padding:12px 0; text-align:center;">⏳ 等待數據載入...</div>
         </div>
-        <!-- 主力結構拆解與後市策略卡片 -->
-        <div class="analysis-card" id="analysisCard">
+    </div>
+
+    <!-- 市場結構與策略 -->
+    <div class="analysis-card" id="analysisCard">
+        <div class="card-header">
             <h3>🧠 市場結構與策略參考</h3>
-            <div id="analysisContent" style="color:var(--text2);font-size:14px;">載入中...</div>
         </div>
-        <div class="section-title" style="margin-top:24px;">📊 美股市場總覽</div>
-        <div class="summary-grid" id="marketCards">
-            <div class="card" style="grid-column:1/-1;text-align:center;color:var(--text3);">⏳ 美股市場數據等待爬蟲寫入</div>
+        <div id="analysisContent" style="min-height:60px;">
+            <div style="color:var(--text3);">載入中...</div>
         </div>
-        <div class="card" style="margin-top:24px"><h3>GAMMA指標數據</h3><div class="copy-row"><span>NQ 合併</span><input class="copy-input" id="tvInput" readonly><button class="copy-btn" onclick="copyTV()">📋 複製</button></div></div>
-        <div class="update-time" id="updateTime">最後更新：載入中...</div>
-    </div>
-    <div id="chips" class="section">
-        <div class="section-title">📊 每日 Call / Put OI 變化</div>
-        <div class="chart-legend"><span><span class="ld" style="background:#E05252"></span>Call OI 變化</span><span><span class="ld" style="background:#3DBF8C"></span>Put OI 變化</span></div>
-        <div style="height:240px"><canvas id="cChips"></canvas></div>
-        <div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>日期</th><th>總CallOI</th><th>總PutOI</th><th>Call變化</th><th>Put變化</th><th>C/P比</th></tr></thead><tbody id="chipsTbody"></tbody></table></div>
-    </div>
-    <div id="cumulative" class="section">
-        <div class="section-title">📈 累計趨勢（每日累加）</div>
-        <div style="margin-bottom:10px"><select id="cumRange" onchange="buildCumulativeChart()" style="background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:6px 12px; color:var(--text);"><option value="30">30天</option><option value="60" selected>60天</option><option value="90">90天</option></select></div>
-        <div class="chart-legend"><span><span class="ld" style="background:#E05252"></span>累積 Call OI</span><span><span class="ld" style="background:#3DBF8C"></span>累積 Put OI</span></div>
-        <div style="height:240px"><canvas id="cCum"></canvas></div>
-        <div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>日期</th><th>總CallOI</th><th>總PutOI</th><th>Call變化</th><th>Put變化</th><th>累積Call</th><th>累積Put</th></tr></thead><tbody id="cumTbody"></tbody></table></div>
-    </div>
-    <div id="sr" class="section">
-        <div style="font-size:13px; color:var(--text2); margin-bottom:16px;">📅 NQ 選擇權｜<span style="color:#ff6b6b;">◀ 壓力(Call)</span> ｜ <span style="color:#5cdba3;">支撐(Put) ▶</span> ｜ 條寬 = 未平倉量</div>
-        <div id="srRating">
-            <div style="margin:16px 0;background:var(--bg2);border-radius:4px;padding:12px 16px;border-left:3px solid var(--primary-light);color:var(--text3);">⏳ 壓力支撐評級表需等待 NQ 市場數據寫入</div>
-        </div>
-        <div class="energy-container" id="srList"></div>
-        <div class="update-time" id="srTime"></div>
     </div>
 
-    <script>
-        const SHEET_ID = "1oPHb8dhDBpoN623zU0zEpC7cuiFLCrzWmvlcZsfSYFM";
-        let DATA = { chips: [], cumulative: [], sr: [], market: null, zg: null, maxCall: null, maxPut: null };
-        const charts = {};
-        function safeNum(s) { const n = parseFloat(String(s || 0).replace(/,/g, '')); return isNaN(n) ? 0 : n; }
-        function fmt(v) { return (v > 0 ? '+' : '') + Math.round(v).toLocaleString(); }
-        function cls(v) { return v > 0 ? 'pos' : v < 0 ? 'neg' : ''; }
+    <!-- 美股市場 -->
+    <div class="section-title" style="margin-top:28px;">📊 美股市場總覽</div>
+    <div class="market-grid" id="marketCards">
+        <div class="card" style="grid-column:1/-1;text-align:center;color:var(--text3);">⏳ 美股市場數據等待爬蟲寫入</div>
+    </div>
 
-        async function fetchRawCSV(name, range = "A1:Z500") {
-            try {
-                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}&range=${range}&_=${Date.now()}`;
-                const r = await fetch(url);
-                if (!r.ok) return '';
-                return await r.text();
-            } catch(e) { return ''; }
+    <!-- 複製列 -->
+    <div class="card" style="margin-top:24px;">
+        <h3>📋 GAMMA 指標數據（NQ 合併）</h3>
+        <div class="copy-row">
+            <input class="copy-input" id="tvInput" readonly>
+            <button class="copy-btn" onclick="copyTV()">📋 複製</button>
+        </div>
+    </div>
+
+    <div class="update-time" id="updateTime">最後更新：載入中...</div>
+</div>
+
+<!-- ===== 籌碼增減 ===== -->
+<div id="chips" class="section">
+    <div class="section-title">📊 每日 Call / Put OI 變化</div>
+    <div style="display:flex; gap:16px; font-size:13px; color:var(--text2); margin-bottom:10px; flex-wrap:wrap;">
+        <span><span style="display:inline-block;width:16px;height:3px;border-radius:2px;background:#E05252;vertical-align:middle;margin-right:6px;"></span>Call OI 變化</span>
+        <span><span style="display:inline-block;width:16px;height:3px;border-radius:2px;background:#3DBF8C;vertical-align:middle;margin-right:6px;"></span>Put OI 變化</span>
+    </div>
+    <div class="chart-box"><canvas id="cChips"></canvas></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>日期</th><th>總CallOI</th><th>總PutOI</th><th>Call變化</th><th>Put變化</th><th>C/P比</th></tr></thead>
+            <tbody id="chipsTbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ===== 累計趨勢 ===== -->
+<div id="cumulative" class="section">
+    <div class="section-title">📈 累計趨勢（每日累加）</div>
+    <div style="margin-bottom:12px;">
+        <select id="cumRange" onchange="buildCumulativeChart()" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:6px 14px;color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;">
+            <option value="30">30天</option>
+            <option value="60" selected>60天</option>
+            <option value="90">90天</option>
+        </select>
+    </div>
+    <div style="display:flex; gap:16px; font-size:13px; color:var(--text2); margin-bottom:10px; flex-wrap:wrap;">
+        <span><span style="display:inline-block;width:16px;height:3px;border-radius:2px;background:#E05252;vertical-align:middle;margin-right:6px;"></span>累積 Call OI</span>
+        <span><span style="display:inline-block;width:16px;height:3px;border-radius:2px;background:#3DBF8C;vertical-align:middle;margin-right:6px;"></span>累積 Put OI</span>
+    </div>
+    <div class="chart-box"><canvas id="cCum"></canvas></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>日期</th><th>總CallOI</th><th>總PutOI</th><th>Call變化</th><th>Put變化</th><th>累積Call</th><th>累積Put</th></tr></thead>
+            <tbody id="cumTbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ===== 選擇權壓力表 ===== -->
+<div id="sr" class="section">
+    <div class="section-title">📅 NQ 選擇權壓力表 <span class="badge">｜ 紅 = Call 壓力 ｜ 綠 = Put 支撐</span></div>
+    <div style="font-size:13px; color:var(--text2); margin-bottom:12px;">
+        ◀ <span style="color:#ff7a5a;">壓力(Call)</span> ｜ <span style="color:#4ddb9a;">支撐(Put)</span> ▶ ｜ 條寬 = 未平倉量
+    </div>
+    <div class="energy-container" id="srList">
+        <div style="text-align:center;padding:30px;color:var(--text3);">⏳ 載入中...</div>
+    </div>
+    <div class="update-time" id="srTime">最後更新：載入中...</div>
+</div>
+
+<!-- ===== 免責聲明 ===== -->
+<div class="footer-disclaimer">
+    <strong>免責聲明：</strong> 本系統提供之數據僅供參考，不構成任何投資建議。所有資訊皆來自第三方公開來源，不保證其準確性與可靠性。使用者應自行判斷並承擔所有風險。
+</div>
+
+<script>
+    // ============================================================
+    //  核心邏輯（完全保留原有功能，僅 UI 渲染升級）
+    // ============================================================
+
+    const SHEET_ID = "1oPHb8dhDBpoN623zU0zEpC7cuiFLCrzWmvlcZsfSYFM";
+    let DATA = { chips: [], cumulative: [], sr: [], market: null, zg: null, maxCall: null, maxPut: null };
+    const charts = {};
+
+    // ---- 工具 ----
+    function safeNum(s) {
+        const n = parseFloat(String(s || 0).replace(/,/g, ''));
+        return isNaN(n) ? 0 : n;
+    }
+    function fmt(v) {
+        return (v > 0 ? '+' : '') + Math.round(v).toLocaleString();
+    }
+    function cls(v) {
+        return v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+    }
+    function fmtOI(v) {
+        if (v >= 1000) return (v / 1000).toFixed(1) + 'K';
+        return v.toLocaleString();
+    }
+
+    // ---- 抓取 ----
+    async function fetchRawCSV(name, range = "A1:Z500") {
+        try {
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}&range=${range}&_=${Date.now()}`;
+            const r = await fetch(url);
+            if (!r.ok) return '';
+            return await r.text();
+        } catch(e) { return ''; }
+    }
+
+    function csvToRows(csv) {
+        if (!csv || !csv.trim()) return [];
+        return csv.trim().split('\n').filter(l => l.trim()).map(l => l.split(',').map(c => c.replace(/^"|"$/g, '').trim()));
+    }
+
+    function parseZGFromTVString(tvStr) {
+        if (!tvStr) return null;
+        const items = tvStr.split(';');
+        for (const item of items) {
+            const fields = item.split(',');
+            if (fields.length >= 6 && fields[5].trim() === '1') {
+                return safeNum(fields[0]);
+            }
         }
+        return null;
+    }
 
-        function csvToRows(csv) {
-            if (!csv || !csv.trim()) return [];
-            return csv.trim().split('\n').filter(l => l.trim()).map(l => l.split(',').map(c => c.replace(/^"|"$/g, '').trim()));
-        }
+    // ---- 市場數據 ----
+    async function loadMarket() {
+        const csv = await fetchRawCSV("NQ 市場數據");
+        if (!csv) { DATA.market = null; return; }
+        const rows = csvToRows(csv);
+        if (rows.length < 2 || !rows[0][0].includes('日期')) { DATA.market = null; return; }
+        const last = rows[rows.length - 1];
+        DATA.market = { ndx: safeNum(last[1]) };
+        document.getElementById('mRef').textContent = DATA.market.ndx > 0 ? DATA.market.ndx.toLocaleString() : '-';
 
-        // 从 TV 字串解析 ZG
-        function parseZGFromTVString(tvStr) {
-            if (!tvStr) return null;
-            const items = tvStr.split(';');
-            for (const item of items) {
-                const fields = item.split(',');
-                if (fields.length >= 6 && fields[5].trim() === '1') {
-                    return safeNum(fields[0]);
+        const items = [
+            ['NDX',1,2], ['SPX',3,4], ['SOX',5,6], ['VIX',7,null], ['VXN',8,null],
+            ['AAPL',9,10], ['MSFT',11,12], ['NVDA',13,14], ['NQ期貨',15,16], ['TSM',17,18]
+        ];
+        document.getElementById('marketCards').innerHTML = items.map(([lb, vi, ci]) => {
+            const v = safeNum(last[vi]).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2});
+            let c = '';
+            if (ci && last[ci]) {
+                const cv = parseFloat(last[ci]);
+                if (!isNaN(cv) && cv !== 0) {
+                    c = `<div class="sub ${cv>0?'pos':'neg'}">${cv>0?'▲':'▼'} ${Math.abs(cv).toFixed(2)}%</div>`;
                 }
             }
-            return null;
+            return `<div class="card"><h3>${lb}</h3><div class="big">${v}</div>${c}</div>`;
+        }).join('');
+
+        buildRatingRows();
+    }
+
+    // ---- 籌碼 ----
+    async function loadChips() {
+        const csv = await fetchRawCSV("NQ 籌碼分析");
+        const rows = csvToRows(csv);
+        if (rows.length < 1) return;
+        DATA.chips = rows.map(r => ({
+            date: r[0], totalCall: safeNum(r[1]), totalPut: safeNum(r[2]), cpRatio: parseFloat(r[3])||0,
+            callChange: safeNum(r[4]), putChange: safeNum(r[5]),
+            maxCallPrice: safeNum(r[6]), maxCallOI: safeNum(r[7]),
+            maxPutPrice: safeNum(r[8]), maxPutOI: safeNum(r[9])
+        }));
+        if (DATA.chips.length > 0) {
+            const last = DATA.chips[DATA.chips.length - 1];
+            document.getElementById('mResist').textContent = last.maxCallPrice > 0 ? last.maxCallPrice.toLocaleString() : '-';
+            document.getElementById('mResistOI').textContent = last.maxCallOI > 0 ? `Call ${Math.round(last.maxCallOI/1000)}K 口` : '';
+            document.getElementById('mSupport').textContent = last.maxPutPrice > 0 ? last.maxPutPrice.toLocaleString() : '-';
+            document.getElementById('mSupportOI').textContent = last.maxPutOI > 0 ? `Put ${Math.round(last.maxPutOI/1000)}K 口` : '';
+            DATA.maxCall = { strike: last.maxCallPrice, oi: last.maxCallOI };
+            DATA.maxPut = { strike: last.maxPutPrice, oi: last.maxPutOI };
         }
+        document.getElementById('chipsTbody').innerHTML = [...DATA.chips].reverse().slice(0,30).map(r =>
+            `<tr><td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td>${r.cpRatio.toFixed(2)}</td></tr>`
+        ).join('');
+        buildChipsChart();
+        buildAnalysis();
+    }
 
-        // ========== 主力結構分析 ==========
-        function buildAnalysis() {
-            const container = document.getElementById('analysisContent');
-            if (!container) return;
-            
-            const last = DATA.chips.length > 0 ? DATA.chips[DATA.chips.length - 1] : null;
-            if (!last || !DATA.maxCall || !DATA.maxPut || !DATA.zg) {
-                container.innerHTML = '<div class="analysis-item info">⏳ 數據載入中，請稍後...</div>';
-                return;
-            }
+    // ---- 累計 ----
+    async function loadCumulative() {
+        const csv = await fetchRawCSV("NQ 累計趨勢");
+        const rows = csvToRows(csv);
+        if (rows.length < 1) return;
+        DATA.cumulative = rows.map(r => ({
+            date: r[0], totalCall: safeNum(r[1]), totalPut: safeNum(r[2]),
+            callChange: safeNum(r[3]), putChange: safeNum(r[4]),
+            cumCall: safeNum(r[5]), cumPut: safeNum(r[6])
+        }));
+        document.getElementById('cumTbody').innerHTML = [...DATA.cumulative].reverse().slice(0,60).map(r =>
+            `<tr><td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td>${fmt(r.cumCall)}</td><td>${fmt(r.cumPut)}</td></tr>`
+        ).join('');
+        buildCumulativeChart();
+    }
 
-            let html = '';
-            
-            // 1. 籌碼方向判斷
-            html += '<div class="analysis-block"><h4>📊 籌碼動向</h4>';
-            const callChange = last.callChange;
-            const putChange = last.putChange;
-            const cpRatio = last.cpRatio;
-            
-            if (callChange > 0 && putChange < 0) {
-                html += '<div class="analysis-item bear"><span class="analysis-tag tag-bear">偏空</span>Call OI 增加 +' + callChange.toLocaleString() + ' 口，Put OI 減少 ' + fmt(putChange) + ' 口，市場傾向賣出買權（看不漲），短線壓力增強。</div>';
-            } else if (callChange < 0 && putChange > 0) {
-                html += '<div class="analysis-item bull"><span class="analysis-tag tag-bull">偏多</span>Call OI 減少 ' + fmt(callChange) + ' 口，Put OI 增加 +' + putChange.toLocaleString() + ' 口，市場傾向賣出賣權（看不跌），短線支撐增強。</div>';
-            } else if (callChange > 0 && putChange > 0) {
-                html += '<div class="analysis-item info"><span class="analysis-tag tag-info">中性</span>Call 與 Put OI 同步增加，市場多空分歧，籌碼集中度上升，留意突破方向。</div>';
-            } else {
-                html += '<div class="analysis-item info"><span class="analysis-tag tag-info">觀望</span>Call 與 Put OI 變化不大，市場等待新的事件驅動。</div>';
-            }
-            
-            html += `<div class="analysis-item">C/P 比值：${cpRatio.toFixed(2)}（${cpRatio > 1 ? 'Call 多於 Put，偏空結構' : 'Put 多於 Call，偏多結構'}）</div>`;
-            html += '</div>';
-
-            // 2. Gamma 結構
-            html += '<div class="analysis-block"><h4>📐 Gamma 結構</h4>';
+    // ---- 選擇權合併 ----
+    async function loadSR() {
+        const tvCsv = await fetchRawCSV("NQ 合併", "A2:A2");
+        const tvStr = tvCsv.replace(/"/g, '').trim();
+        DATA.zg = parseZGFromTVString(tvStr);
+        if (DATA.zg) {
+            document.getElementById('mZG').textContent = DATA.zg.toLocaleString();
             if (DATA.market && DATA.market.ndx > 0) {
-                const spot = DATA.market.ndx;
-                const diff = ((spot - DATA.zg) / DATA.zg * 100);
-                if (diff > 2) {
-                    html += `<div class="analysis-item bull"><span class="analysis-tag tag-bull">正 Gamma 區</span>NQ 參考價 ${spot.toLocaleString()} 高於 ZG ${DATA.zg.toLocaleString()}（+${diff.toFixed(1)}%），市場處於正 Gamma 區域，波動傾向抑制，適合區間操作。</div>`;
-                } else if (diff < -2) {
-                    html += `<div class="analysis-item bear"><span class="analysis-tag tag-bear">負 Gamma 區</span>NQ 參考價 ${spot.toLocaleString()} 低於 ZG ${DATA.zg.toLocaleString()}（${diff.toFixed(1)}%），市場處於負 Gamma 區域，波動可能放大，適合順勢操作。</div>`;
-                } else {
-                    html += `<div class="analysis-item info"><span class="analysis-tag tag-info">ZG 附近</span>NQ 參考價 ${spot.toLocaleString()} 接近 ZG ${DATA.zg.toLocaleString()}，Gamma 結構即將翻轉，等待方向表態。</div>`;
-                }
-            } else {
-                html += `<div class="analysis-item info"><span class="analysis-tag tag-info">等待數據</span>Zero Gamma 位於 ${DATA.zg.toLocaleString()}，等待 NQ 市場數據寫入後將自動分析結構。</div>`;
+                const diff = DATA.market.ndx - DATA.zg;
+                const pct = (diff / DATA.zg * 100);
+                let label = '⚪ ZG附近';
+                if (diff > 0) label = '🟢 偏多區 (+' + pct.toFixed(1) + '%)';
+                else if (diff < 0) label = '🔴 偏空區 (' + pct.toFixed(1) + '%)';
+                document.getElementById('mPos').textContent = label;
             }
-            html += '</div>';
-
-            // 3. 關鍵價位
-            html += '<div class="analysis-block"><h4>🔑 關鍵價位</h4>';
-            html += `<div class="analysis-item">最大壓力：<span style="color:#ff6b6b;">${DATA.maxCall.strike.toLocaleString()}</span>（Call OI ${DATA.maxCall.oi.toLocaleString()} 口）</div>`;
-            html += `<div class="analysis-item">最大支撐：<span style="color:#5cdba3;">${DATA.maxPut.strike.toLocaleString()}</span>（Put OI ${DATA.maxPut.oi.toLocaleString()} 口）</div>`;
-            html += '</div>';
-
-            container.innerHTML = html;
+        } else {
+            document.getElementById('mZG').textContent = '-';
         }
 
-        // ========== 市場數據 ==========
-        async function loadMarket() {
-            const csv = await fetchRawCSV("NQ 市場數據");
-            if (!csv) { DATA.market = null; return; }
-            const rows = csvToRows(csv);
-            if (rows.length < 2 || !rows[0][0].includes('日期')) { DATA.market = null; return; }
-            const last = rows[rows.length - 1];
-            DATA.market = { ndx: safeNum(last[1]) };
-            document.getElementById('mRef').textContent = DATA.market.ndx > 0 ? DATA.market.ndx.toLocaleString() : '-';
-            const items = [
-                ['NDX',1,2],['SPX',3,4],['SOX',5,6],['VIX',7,null],['VXN',8,null],
-                ['AAPL',9,10],['MSFT',11,12],['NVDA',13,14],['NQ期貨',15,16],['TSM',17,18]
-            ];
-            document.getElementById('marketCards').innerHTML = items.map(([lb, vi, ci]) => {
-                const v = safeNum(last[vi]).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2});
-                let c = '';
-                if (ci && last[ci]) { const cv = parseFloat(last[ci]); if (!isNaN(cv) && cv !== 0) c = `<div class="sub ${cv>0?'pos':'neg'}">${cv>0?'+':''}${cv.toFixed(2)}%</div>`; }
-                return `<div class="card"><h3>${lb}</h3><div class="big">${v}</div>${c}</div>`;
-            }).join('');
-            buildRatingTable();
+        const csv = await fetchRawCSV("NQ 合併");
+        const rows = csvToRows(csv);
+        if (rows.length < 5) return;
+        const dataRows = rows.slice(4);
+        DATA.sr = dataRows.map(r => ({
+            strike: safeNum(r[1]), callOI: safeNum(r[2]), putOI: safeNum(r[3]),
+            isZG: DATA.zg !== null && safeNum(r[1]) === DATA.zg
+        })).filter(r => r.strike > 0);
+
+        buildSRBars();
+        buildRatingRows();
+        buildAnalysis();
+    }
+
+    // ---- 壓力支撐評級表（水平長條） ----
+    function buildRatingRows() {
+        const container = document.getElementById('ratingRows');
+        if (!DATA.market || !DATA.market.ndx || !DATA.sr.length) {
+            container.innerHTML = '<div style="color:var(--text3); padding:12px 0; text-align:center;">⏳ 等待數據載入...</div>';
+            return;
         }
+        const spot = DATA.market.ndx;
+        let above = [], below = [];
+        DATA.sr.forEach(r => {
+            const d = r.strike - spot;
+            if (d > 0) above.push({...r, dist: d});
+            else if (d < 0) below.push({...r, dist: Math.abs(d)});
+        });
+        above.sort((a,b) => a.dist - b.dist);
+        below.sort((a,b) => a.dist - b.dist);
+        const topP = above.slice(0, 3);
+        const topS = below.slice(0, 3);
+        const maxOI = Math.max(1, ...[...topP, ...topS].map(r => r.callOI || r.putOI || 0));
 
-        // ========== 籌碼分析 ==========
-        async function loadChips() {
-            const csv = await fetchRawCSV("NQ 籌碼分析");
-            const rows = csvToRows(csv);
-            if (rows.length < 1) return;
-            DATA.chips = rows.map(r => ({
-                date: r[0], totalCall: safeNum(r[1]), totalPut: safeNum(r[2]), cpRatio: parseFloat(r[3])||0,
-                callChange: safeNum(r[4]), putChange: safeNum(r[5]),
-                maxCallPrice: safeNum(r[6]), maxCallOI: safeNum(r[7]),
-                maxPutPrice: safeNum(r[8]), maxPutOI: safeNum(r[9])
-            }));
-            if (DATA.chips.length > 0) {
-                const last = DATA.chips[DATA.chips.length - 1];
-                document.getElementById('mResist').textContent = last.maxCallPrice > 0 ? last.maxCallPrice.toLocaleString() : '-';
-                document.getElementById('mResistOI').textContent = last.maxCallOI > 0 ? `Call ${Math.round(last.maxCallOI/1000)}K 口` : '';
-                document.getElementById('mSupport').textContent = last.maxPutPrice > 0 ? last.maxPutPrice.toLocaleString() : '-';
-                document.getElementById('mSupportOI').textContent = last.maxPutOI > 0 ? `Put ${Math.round(last.maxPutOI/1000)}K 口` : '';
-                DATA.maxCall = { strike: last.maxCallPrice, oi: last.maxCallOI };
-                DATA.maxPut = { strike: last.maxPutPrice, oi: last.maxPutOI };
-            }
-            document.getElementById('chipsTbody').innerHTML = [...DATA.chips].reverse().slice(0,30).map(r =>
-                `<tr><td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td>${r.cpRatio.toFixed(2)}</td></tr>`
-            ).join('');
-            buildChipsChart();
-            buildAnalysis();
-        }
+        let html = '';
 
-        // ========== 累計趨勢 ==========
-        async function loadCumulative() {
-            const csv = await fetchRawCSV("NQ 累計趨勢");
-            const rows = csvToRows(csv);
-            if (rows.length < 1) return;
-            DATA.cumulative = rows.map(r => ({
-                date: r[0], totalCall: safeNum(r[1]), totalPut: safeNum(r[2]),
-                callChange: safeNum(r[3]), putChange: safeNum(r[4]),
-                cumCall: safeNum(r[5]), cumPut: safeNum(r[6])
-            }));
-            document.getElementById('cumTbody').innerHTML = [...DATA.cumulative].reverse().slice(0,60).map(r =>
-                `<tr><td>${r.date}</td><td>${r.totalCall.toLocaleString()}</td><td>${r.totalPut.toLocaleString()}</td><td class="${cls(r.callChange)}">${fmt(r.callChange)}</td><td class="${cls(r.putChange)}">${fmt(r.putChange)}</td><td>${fmt(r.cumCall)}</td><td>${fmt(r.cumPut)}</td></tr>`
-            ).join('');
-            buildCumulativeChart();
-        }
-
-        // ========== 選擇權合併 ==========
-        async function loadSR() {
-            const tvCsv = await fetchRawCSV("NQ 合併", "A2:A2");
-            const tvStr = tvCsv.replace(/"/g, '').trim();
-            DATA.zg = parseZGFromTVString(tvStr);
-            if (DATA.zg) {
-                document.getElementById('mZG').textContent = DATA.zg.toLocaleString();
-                if (DATA.market && DATA.market.ndx > 0) {
-                    document.getElementById('mPos').textContent = DATA.market.ndx > DATA.zg ? '🟢 偏多區' : DATA.market.ndx < DATA.zg ? '🔴 偏空區' : '⚪ ZG附近';
-                }
-            } else {
-                document.getElementById('mZG').textContent = '-';
-            }
-
-            const csv = await fetchRawCSV("NQ 合併");
-            const rows = csvToRows(csv);
-            if (rows.length < 5) return;
-            const dataRows = rows.slice(4);
-            DATA.sr = dataRows.map(r => ({
-                strike: safeNum(r[1]), callOI: safeNum(r[2]), putOI: safeNum(r[3]),
-                isZG: DATA.zg !== null && safeNum(r[1]) === DATA.zg
-            })).filter(r => r.strike > 0);
-
-            buildSRBars();
-            if (DATA.market && DATA.market.ndx > 0) buildRatingTable();
-            buildAnalysis();
-        }
-
-        function buildRatingTable() {
-            if (!DATA.market || !DATA.market.ndx) return;
-            const spot = DATA.market.ndx;
-            if (!DATA.sr.length) return;
-            let above = [], below = [];
-            DATA.sr.forEach(r => { const d = r.strike - spot; if (d > 0) above.push({...r, dist: d}); else if (d < 0) below.push({...r, dist: Math.abs(d)}); });
-            above.sort((a,b) => a.dist - b.dist); below.sort((a,b) => a.dist - b.dist);
-            const topP = above.slice(0, 3), topS = below.slice(0, 3);
-            const sc = DATA.maxCall ? DATA.maxCall.strike : null, sp = DATA.maxPut ? DATA.maxPut.strike : null;
-            let h = '<div style="margin:16px 0;background:var(--bg2);border-radius:4px;padding:12px 16px;border-left:3px solid var(--primary-light);"><div style="font-weight:700;color:var(--primary-light);margin-bottom:8px;">📋 壓力支撐評級表</div><table class="rating-table">';
-            topP.forEach(p => { const isStrong = p.strike === sc; const oiD = p.callOI >= 1000 ? (p.callOI/1000).toFixed(1)+'K' : p.callOI; h += `<tr><td class="${isStrong?'strong-pressure':'pressure'}">${isStrong?'🔴 強壓':'🟠 壓力'} ${p.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 +${((p.dist/spot)*100).toFixed(1)}%</td></tr>`; });
-            h += `<tr class="spot-row"><td>─── 現貨約 ${spot.toLocaleString()} ───</td><td></td></tr>`;
-            topS.forEach(s => { const isStrong = s.strike === sp; const oiD = s.putOI >= 1000 ? (s.putOI/1000).toFixed(1)+'K' : s.putOI; h += `<tr><td class="${isStrong?'strong-support':'support'}">${isStrong?'🟢 強撐':'🟩 支撐'} ${s.strike.toLocaleString()}（${oiD}口）</td><td style="text-align:right;color:var(--text2);">距現貨 -${((s.dist/spot)*100).toFixed(1)}%</td></tr>`; });
-            h += '</table></div>';
-            document.getElementById('srRating').innerHTML = h;
-        }
-
-        function buildSRBars() {
-            const div = document.getElementById('srList');
-            if (!DATA.sr.length) { div.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);">📭 尚無資料</div>'; return; }
-            const sorted = [...DATA.sr].sort((a,b) => b.strike - a.strike);
-            const maxT = Math.max(1, ...sorted.map(r => r.callOI + r.putOI));
-            div.innerHTML = sorted.map(r => {
-                const cP = Math.max(3, (r.callOI/maxT)*100), pP = Math.max(3, (r.putOI/maxT)*100);
-                const isZG = r.isZG, isMC = DATA.maxCall && DATA.maxCall.strike === r.strike, isMP = DATA.maxPut && DATA.maxPut.strike === r.strike;
-                const cD = r.callOI >= 1000 ? (r.callOI/1000).toFixed(1)+'K' : r.callOI, pD = r.putOI >= 1000 ? (r.putOI/1000).toFixed(1)+'K' : r.putOI;
-                let tags = '';
-                if (isZG) tags += '<span class="energy-tag zg">ZG</span>';
-                if (isMC) tags += '<span class="energy-tag" style="background:rgba(224,82,82,0.2);color:#ff6b6b;">最強壓</span>';
-                if (isMP) tags += '<span class="energy-tag" style="background:rgba(61,191,140,0.2);color:#5cdba3;">最強撐</span>';
-                return `<div class="energy-row${isZG?' is-zg':''}${isMC?' is-maxc':''}${isMP?' is-maxp':''}"><div class="energy-left"><div class="bar-track"><div class="bar-fill" style="width:${cP}%;">${r.callOI>0?`<span class="bar-value">${cD}</span>`:''}</div></div></div><div class="energy-center"><span class="energy-price">${r.strike.toLocaleString()}</span>${tags?`<div class="energy-tags">${tags}</div>`:''}</div><div class="energy-right"><div class="bar-track"><div class="bar-fill" style="width:${pP}%;">${r.putOI>0?`<span class="bar-value">${pD}</span>`:''}</div></div></div></div>`;
-            }).join('');
-        }
-
-        function buildChipsChart() {
-            if (!DATA.chips.length) return;
-            const d = DATA.chips.slice(-30);
-            if (charts.cChips) charts.cChips.destroy();
-            charts.cChips = new Chart(document.getElementById('cChips'), { type: 'line', data: { labels: d.map(r => r.date), datasets: [
-                { data: d.map(r => r.callChange), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
-                { data: d.map(r => r.putChange), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
-            ]}, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 } } }, y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } } });
-        }
-
-        function buildCumulativeChart() {
-            if (!DATA.cumulative.length) return;
-            const range = parseInt(document.getElementById('cumRange').value || 60);
-            const d = DATA.cumulative.slice(-range);
-            if (charts.cCum) charts.cCum.destroy();
-            charts.cCum = new Chart(document.getElementById('cCum'), { type: 'line', data: { labels: d.map(r => r.date), datasets: [
-                { data: d.map(r => r.cumCall), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
-                { data: d.map(r => r.cumPut), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
-            ]}, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 } } }, y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } } });
-        }
-
-        async function loadTVString() {
-            const csv = await fetchRawCSV("NQ 合併", "A2:A2");
-            document.getElementById('tvInput').value = csv.replace(/"/g, '').trim();
-        }
-
-        async function copyTV() {
-            const i = document.getElementById('tvInput');
-            try { await navigator.clipboard.writeText(i.value); } catch(e) { i.select(); document.execCommand('copy'); }
-            const b = document.querySelector('.copy-btn'); b.textContent = '✅ 已複製'; setTimeout(() => { b.textContent = '📋 複製'; }, 1500);
-        }
-
-        document.getElementById('tabBar').addEventListener('click', e => {
-            const tab = e.target.closest('.tab'); if (!tab) return;
-            const id = tab.getAttribute('data-tab');
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            document.querySelectorAll('#tabBar .tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            if (id === 'cumulative') buildCumulativeChart();
-            if (id === 'chips') buildChipsChart();
+        // 壓力（上）
+        topP.forEach(p => {
+            const isStrong = DATA.maxCall && DATA.maxCall.strike === p.strike;
+            const oi = p.callOI || 0;
+            const pct = (oi / maxOI) * 100;
+            const label = isStrong ? '🔴 強壓' : '🟠 壓力';
+            const cls = isStrong ? 'strong-pressure' : 'pressure';
+            html += `<div class="rating-row">
+                <div class="label"><span class="emoji">${isStrong ? '🔴' : '🟠'}</span> ${p.strike.toLocaleString()}</div>
+                <div class="bar-wrap"><div class="bar-fill ${cls}" style="width:${Math.max(6, pct)}%;">${oi > 0 ? fmtOI(oi) : ''}</div></div>
+                <div class="dist">+${((p.dist/spot)*100).toFixed(1)}%</div>
+            </div>`;
         });
 
-        async function loadAll() {
-            document.getElementById('statusText').textContent = '更新中...';
-            try {
-                await Promise.all([loadMarket(), loadChips(), loadCumulative(), loadSR(), loadTVString()]);
-                const now = new Date().toLocaleString('zh-TW', { hour12: false });
-                document.getElementById('updateTime').textContent = `最後更新：${now}`;
-                document.getElementById('srTime').textContent = `最後更新：${now}`;
-                document.getElementById('statusText').textContent = '✅ 每日 07:00 自動更新';
-            } catch(e) { document.getElementById('statusText').textContent = '❌ 更新失敗'; }
+        // 現貨線
+        html += `<div class="rating-row spot-row">
+            <div class="label">─── 現貨 ${spot.toLocaleString()} ───</div>
+            <div class="bar-wrap" style="background:transparent;"></div>
+            <div class="dist"></div>
+        </div>`;
+
+        // 支撐（下）
+        topS.forEach(s => {
+            const isStrong = DATA.maxPut && DATA.maxPut.strike === s.strike;
+            const oi = s.putOI || 0;
+            const pct = (oi / maxOI) * 100;
+            const cls = isStrong ? 'strong-support' : 'support';
+            html += `<div class="rating-row">
+                <div class="label"><span class="emoji">${isStrong ? '🟢' : '🟩'}</span> ${s.strike.toLocaleString()}</div>
+                <div class="bar-wrap"><div class="bar-fill ${cls}" style="width:${Math.max(6, pct)}%;">${oi > 0 ? fmtOI(oi) : ''}</div></div>
+                <div class="dist">-${((s.dist/spot)*100).toFixed(1)}%</div>
+            </div>`;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // ---- 能量條 ----
+    function buildSRBars() {
+        const div = document.getElementById('srList');
+        if (!DATA.sr.length) {
+            div.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);">📭 尚無資料</div>';
+            return;
+        }
+        const sorted = [...DATA.sr].sort((a,b) => b.strike - a.strike);
+        const maxT = Math.max(1, ...sorted.map(r => r.callOI + r.putOI));
+
+        div.innerHTML = sorted.map(r => {
+            const cP = Math.max(4, (r.callOI / maxT) * 100);
+            const pP = Math.max(4, (r.putOI / maxT) * 100);
+            const isZG = r.isZG;
+            const isMC = DATA.maxCall && DATA.maxCall.strike === r.strike;
+            const isMP = DATA.maxPut && DATA.maxPut.strike === r.strike;
+
+            let tags = '';
+            if (isZG) tags += '<span class="energy-tag zg">ZG</span>';
+            if (isMC) tags += '<span class="energy-tag maxc">最強壓</span>';
+            if (isMP) tags += '<span class="energy-tag maxp">最強撐</span>';
+
+            const cLabel = r.callOI > 0 ? fmtOI(r.callOI) : '';
+            const pLabel = r.putOI > 0 ? fmtOI(r.putOI) : '';
+
+            return `<div class="energy-row${isZG?' is-zg':''}${isMC?' is-maxc':''}${isMP?' is-maxp':''}">
+                <div class="energy-left">
+                    <div class="bar-track">
+                        <div class="bar-fill${isMC?' strong':''}" style="width:${cP}%;">
+                            ${cLabel ? `<span class="bar-value">${cLabel}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="energy-center">
+                    <span class="energy-price">${r.strike.toLocaleString()}</span>
+                    ${tags ? `<div class="energy-tags">${tags}</div>` : ''}
+                </div>
+                <div class="energy-right">
+                    <div class="bar-track">
+                        <div class="bar-fill${isMP?' strong':''}" style="width:${pP}%;">
+                            ${pLabel ? `<span class="bar-value">${pLabel}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // ---- 市場結構分析 ----
+    function buildAnalysis() {
+        const container = document.getElementById('analysisContent');
+        if (!container) return;
+
+        const last = DATA.chips.length > 0 ? DATA.chips[DATA.chips.length - 1] : null;
+        if (!last || !DATA.maxCall || !DATA.maxPut || !DATA.zg) {
+            container.innerHTML = '<div style="color:var(--text3);padding:8px 0;">⏳ 數據載入中，請稍後...</div>';
+            return;
         }
 
-        loadAll();
-    </script>
+        // 籌碼方向
+        let directionTag = '', directionText = '';
+        const callChg = last.callChange, putChg = last.putChange;
+        if (callChg > 0 && putChg < 0) {
+            directionTag = '<span class="tag tag-bear">偏空</span>';
+            directionText = 'Call OI 增加，Put OI 減少，市場傾向看不漲';
+        } else if (callChg < 0 && putChg > 0) {
+            directionTag = '<span class="tag tag-bull">偏多</span>';
+            directionText = 'Call OI 減少，Put OI 增加，市場傾向看不跌';
+        } else if (callChg > 0 && putChg > 0) {
+            directionTag = '<span class="tag tag-neutral">中性</span>';
+            directionText = '多空同步增加，籌碼集中度上升';
+        } else {
+            directionTag = '<span class="tag tag-neutral">觀望</span>';
+            directionText = '變化不大，等待新驅動';
+        }
+
+        // Gamma 結構
+        let gammaTag = '', gammaText = '';
+        if (DATA.market && DATA.market.ndx > 0) {
+            const spot = DATA.market.ndx;
+            const diff = ((spot - DATA.zg) / DATA.zg * 100);
+            if (diff > 2) {
+                gammaTag = '<span class="tag tag-bull">正 Gamma</span>';
+                gammaText = `NQ 高於 ZG（+${diff.toFixed(1)}%），波動傾向抑制`;
+            } else if (diff < -2) {
+                gammaTag = '<span class="tag tag-bear">負 Gamma</span>';
+                gammaText = `NQ 低於 ZG（${diff.toFixed(1)}%），波動可能放大`;
+            } else {
+                gammaTag = '<span class="tag tag-neutral">ZG 附近</span>';
+                gammaText = 'Gamma 即將翻轉，等待表態';
+            }
+        } else {
+            gammaTag = '<span class="tag tag-info">等待數據</span>';
+            gammaText = `ZG ${DATA.zg.toLocaleString()}，待 NQ 價位寫入`;
+        }
+
+        // C/P 比
+        const cpRatio = last.cpRatio || 0;
+        const cpTag = cpRatio > 1 ? '<span class="tag tag-bear">Call > Put</span>' : '<span class="tag tag-bull">Put > Call</span>';
+
+        container.innerHTML = `
+            <div class="analysis-grid">
+                <div class="analysis-item-box" style="border-left-color:#E05252;">
+                    <div class="item-label">📊 籌碼方向</div>
+                    <div class="item-value">${directionTag} ${directionText}</div>
+                </div>
+                <div class="analysis-item-box" style="border-left-color:#b085f5;">
+                    <div class="item-label">📐 Gamma 結構</div>
+                    <div class="item-value">${gammaTag} ${gammaText}</div>
+                </div>
+                <div class="analysis-item-box" style="border-left-color:#4A9EE0;">
+                    <div class="item-label">📈 C/P 比值</div>
+                    <div class="item-value">${cpRatio.toFixed(2)} ${cpTag}</div>
+                </div>
+                <div class="analysis-item-box" style="border-left-color:#ff9f7c;">
+                    <div class="item-label">🔑 關鍵價位</div>
+                    <div class="item-value">
+                        壓力 <span style="color:#ff6b6b;">${DATA.maxCall.strike.toLocaleString()}</span> ｜
+                        支撐 <span style="color:#5cdba3;">${DATA.maxPut.strike.toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="analysis-item-box analysis-full" style="border-left-color:#3DBF8C;">
+                    <div class="item-label">💡 操作建議</div>
+                    <div class="item-value" style="font-weight:400;font-size:14px;color:var(--text2);">
+                        ${cpRatio > 1.1 ? '籌碼偏空，上方壓力沉重，留意短線回檔風險。' :
+                          cpRatio < 0.9 ? '籌碼偏多，下方支撐穩固，可留意拉回承接機會。' :
+                          '多空均衡，建議縮小部位，等待趨勢明確再積極操作。'}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // ---- 圖表 ----
+    function buildChipsChart() {
+        if (!DATA.chips.length) return;
+        const d = DATA.chips.slice(-30);
+        if (charts.cChips) charts.cChips.destroy();
+        charts.cChips = new Chart(document.getElementById('cChips'), {
+            type: 'line',
+            data: {
+                labels: d.map(r => r.date),
+                datasets: [
+                    { data: d.map(r => r.callChange), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
+                    { data: d.map(r => r.putChange), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { font: { size: 10, color: '#6A645C' }, color: '#6A645C' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: { ticks: { font: { size: 10, color: '#6A645C' } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+                }
+            }
+        });
+    }
+
+    function buildCumulativeChart() {
+        if (!DATA.cumulative.length) return;
+        const range = parseInt(document.getElementById('cumRange').value || 60);
+        const d = DATA.cumulative.slice(-range);
+        if (charts.cCum) charts.cCum.destroy();
+        charts.cCum = new Chart(document.getElementById('cCum'), {
+            type: 'line',
+            data: {
+                labels: d.map(r => r.date),
+                datasets: [
+                    { data: d.map(r => r.cumCall), borderColor: '#E05252', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false },
+                    { data: d.map(r => r.cumPut), borderColor: '#3DBF8C', tension: 0.3, pointRadius: 1, borderWidth: 2, fill: false }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { font: { size: 10, color: '#6A645C' } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: { ticks: { font: { size: 10, color: '#6A645C' } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+                }
+            }
+        });
+    }
+
+    // ---- 複製 ----
+    async function loadTVString() {
+        const csv = await fetchRawCSV("NQ 合併", "A2:A2");
+        document.getElementById('tvInput').value = csv.replace(/"/g, '').trim();
+    }
+    async function copyTV() {
+        const i = document.getElementById('tvInput');
+        try { await navigator.clipboard.writeText(i.value); } catch(e) { i.select(); document.execCommand('copy'); }
+        const b = document.querySelector('.copy-btn'); b.textContent = '✅ 已複製'; setTimeout(() => { b.textContent = '📋 複製'; }, 1500);
+    }
+
+    // ---- 標籤切換 ----
+    document.getElementById('tabBar').addEventListener('click', e => {
+        const tab = e.target.closest('.tab'); if (!tab) return;
+        const id = tab.getAttribute('data-tab');
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.querySelectorAll('#tabBar .tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        if (id === 'cumulative') buildCumulativeChart();
+        if (id === 'chips') buildChipsChart();
+    });
+
+    // ---- 主載入 ----
+    async function loadAll() {
+        document.getElementById('statusText').textContent = '更新中...';
+        try {
+            await Promise.all([loadMarket(), loadChips(), loadCumulative(), loadSR(), loadTVString()]);
+            const now = new Date().toLocaleString('zh-TW', { hour12: false });
+            document.getElementById('updateTime').textContent = `最後更新：${now}`;
+            document.getElementById('srTime').textContent = `最後更新：${now}`;
+            document.getElementById('statusText').textContent = '✅ 每日 07:00 自動更新';
+        } catch(e) {
+            document.getElementById('statusText').textContent = '❌ 更新失敗';
+        }
+    }
+
+    loadAll();
+</script>
+
 </body>
 </html>
