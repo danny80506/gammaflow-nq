@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NQ 選擇權 GEX 全自動爬蟲 v1.6
-- 自動判斷季度合約（到期日 = 第三個週五）
-- 每日總 Call/Put OI 變化 + 累計趨勢（使用歷史快取）
+NQ 選擇權 GEX 全自動爬蟲 v1.7
+- 自動判斷季度合約
+- 每日總 Call/Put OI 變化 + 累計趨勢（基於試算表前一日數據）
+- 自動清理 90 天前舊行
 - 美股盤後數據（NDX, SPX, SOX, VIX, VXN, AAPL, MSFT, NVDA, GOOGL, AMZN, META, TSLA, NQ期貨, TSM）
-- 籌碼分析寫入試算表
 """
 
 import os, csv, math, json, time
@@ -21,7 +21,6 @@ MULT         = 20
 
 SPREADSHEET_ID = "1oPHb8dhDBpoN623zU0zEpC7cuiFLCrzWmvlcZsfSYFM"
 CSV_DOWNLOAD_DIR = "/tmp/nq_csv"
-HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nq_history.json")
 
 BARCHART_USER = os.environ.get("BARCHART_USER", "")
 BARCHART_PASS = os.environ.get("BARCHART_PASS", "")
@@ -33,17 +32,6 @@ NQ_QUARTER_MAP = {
     9:  {"code": "U", "name": "sep"},
     12: {"code": "Z", "name": "dec"},
 }
-
-# ---------- 歷史快取 ----------
-def load_nq_history():
-    if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
-def save_nq_history(data):
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
 
 # ---------- 輔助函數 ----------
 def get_third_friday(year, month):
@@ -79,9 +67,7 @@ def get_current_nq_contract():
 def is_us_market_open():
     tw_now = datetime.now(timezone(timedelta(hours=8)))
     today = tw_now.date()
-    if today.weekday() >= 5:
-        return False
-    return True
+    return today.weekday() < 5  # 週末不跑
 
 # ---------- 1. 下載 CSV ----------
 def download_barchart_csv():
@@ -220,7 +206,7 @@ def calc_nq_gex(details, S, sigma):
         if r["履約價"] == zg_strike: r["is_zero_gamma"] = True
     return result
 
-# ---------- 4. 寫入 Google Sheets ----------
+# ---------- 4. Google Sheets 寫入 ----------
 def connect_gsheet():
     import gspread
     from google.oauth2.service_account import Credentials
@@ -261,7 +247,7 @@ def write_to_sheet(gex_data, tv_string):
     ws.append_rows(rows)
     print(f"✅ 已寫入 {len(rows)} 筆至 NQ 合併")
 
-def write_nq_chips_analysis(sh, gex_data, today_str, history):
+def write_nq_chips_analysis(sh, gex_data, today_str):
     ws = ensure_sheet(sh, "NQ 籌碼分析", rows=500, cols=10)
     total_call = sum(d["call_oi"] for d in gex_data)
     total_put = sum(d["put_oi"] for d in gex_data)
@@ -269,64 +255,104 @@ def write_nq_chips_analysis(sh, gex_data, today_str, history):
     max_call = max(gex_data, key=lambda x: x["call_oi"])
     max_put = max(gex_data, key=lambda x: x["put_oi"])
 
-    # 從歷史快取讀取前一天數據
-    prev_day = (datetime.now(timezone(timedelta(hours=8))) - timedelta(days=1)).strftime("%Y/%m/%d")
-    prev_data = history.get(prev_day, {})
-    prev_call = prev_data.get("total_call", 0)
-    prev_put = prev_data.get("total_put", 0)
-
-    call_change = total_call - prev_call
-    put_change = total_put - prev_put
-
+    # 從試算表最後一筆數據取得前一日總 OI，計算變化量
     all_rows = ws.get_all_values()
+    call_change = 0
+    put_change = 0
+    if len(all_rows) > 1:  # 已有歷史數據
+        last_row = all_rows[-1]
+        try:
+            prev_total_call = float(last_row[1])
+            prev_total_put = float(last_row[2])
+            call_change = total_call - prev_total_call
+            put_change = total_put - prev_total_put
+        except:
+            pass
+
+    # 確保標題行
     if len(all_rows) == 0:
         ws.append_row(["日期","總CallOI","總PutOI","C/P比","Call變化","Put變化","最大壓力價","最大壓力OI","最大支撐價","最大支撐OI"])
         all_rows = [["日期"]]
 
     dates = ws.col_values(1)
-    row_data = [today_str, total_call, total_put, cp_ratio, call_change, put_change,
+    row_data = [today_str, total_call, total_put, cp_ratio, int(call_change), int(put_change),
                 max_call["履約價"], max_call["call_oi"],
                 max_put["履約價"], max_put["put_oi"]]
+
     if today_str in dates:
         idx = dates.index(today_str) + 1
         ws.update(values=[row_data], range_name=f"A{idx}:J{idx}")
     else:
         ws.append_row(row_data)
-    print(f"✅ 已寫入 NQ 籌碼分析（call增減: {call_change}, put增減: {put_change}）")
 
-def write_nq_cumulative(sh, gex_data, today_str, history):
+    # 自動刪除 90 天前的舊行
+    cutoff_date = (datetime.now(timezone(timedelta(hours=8))) - timedelta(days=90)).strftime("%Y/%m/%d")
+    all_values = ws.get_all_values()
+    rows_to_delete = []
+    for i, row in enumerate(all_values[1:], start=2):
+        if row[0] < cutoff_date:
+            rows_to_delete.append(i)
+    for row_index in reversed(rows_to_delete):
+        ws.delete_rows(row_index)
+
+    print(f"✅ 已寫入 NQ 籌碼分析（call變化: {call_change}, put變化: {put_change}）")
+
+def write_nq_cumulative(sh, gex_data, today_str):
     ws = ensure_sheet(sh, "NQ 累計趨勢", rows=500, cols=8)
     total_call = sum(d["call_oi"] for d in gex_data)
     total_put = sum(d["put_oi"] for d in gex_data)
 
-    # 從歷史快取讀取前一天數據
-    prev_day = (datetime.now(timezone(timedelta(hours=8))) - timedelta(days=1)).strftime("%Y/%m/%d")
-    prev_data = history.get(prev_day, {})
-    prev_call = prev_data.get("total_call", 0)
-    prev_put = prev_data.get("total_put", 0)
-
-    call_change = total_call - prev_call
-    put_change = total_put - prev_put
-
     all_rows = ws.get_all_values()
+    call_change = 0
+    put_change = 0
+    if len(all_rows) > 1:
+        last_row = all_rows[-1]
+        try:
+            prev_total_call = float(last_row[1])
+            prev_total_put = float(last_row[2])
+            call_change = total_call - prev_total_call
+            put_change = total_put - prev_total_put
+        except:
+            pass
+
+    # 取得上一行累計值
     prev_cum_call = 0
     prev_cum_put = 0
     if len(all_rows) > 1:
         last_row = all_rows[-1]
-        prev_cum_call = int(last_row[5]) if len(last_row) > 5 and last_row[5] else 0
-        prev_cum_put = int(last_row[6]) if len(last_row) > 6 and last_row[6] else 0
+        try:
+            prev_cum_call = int(last_row[5])
+            prev_cum_put = int(last_row[6])
+        except:
+            pass
 
-    cum_call = prev_cum_call + call_change
-    cum_put = prev_cum_put + put_change
+    cum_call = prev_cum_call + int(call_change)
+    cum_put = prev_cum_put + int(put_change)
+
+    if len(all_rows) == 0:
+        ws.append_row(["日期","總CallOI","總PutOI","Call變化","Put變化","累積Call","累積Put"])
+        all_rows = [["日期"]]
 
     dates = ws.col_values(1)
-    row_data = [today_str, total_call, total_put, call_change, put_change, cum_call, cum_put]
+    row_data = [today_str, total_call, total_put, int(call_change), int(put_change), cum_call, cum_put]
+
     if today_str in dates:
         idx = dates.index(today_str) + 1
         ws.update(values=[row_data], range_name=f"A{idx}:G{idx}")
     else:
         ws.append_row(row_data)
-    print(f"✅ 已寫入 NQ 累計趨勢（call增減: {call_change}, put增減: {put_change}）")
+
+    # 自動刪除 90 天前的舊行
+    cutoff_date = (datetime.now(timezone(timedelta(hours=8))) - timedelta(days=90)).strftime("%Y/%m/%d")
+    all_values = ws.get_all_values()
+    rows_to_delete = []
+    for i, row in enumerate(all_values[1:], start=2):
+        if row[0] < cutoff_date:
+            rows_to_delete.append(i)
+    for row_index in reversed(rows_to_delete):
+        ws.delete_rows(row_index)
+
+    print(f"✅ 已寫入 NQ 累計趨勢（call變化: {call_change}, put變化: {put_change}）")
 
 def write_us_market_data(sh, us_data, ndx_close, ndx_change, today_str):
     ws = ensure_sheet(sh, "NQ 市場數據", rows=100, cols=30)
@@ -370,12 +396,8 @@ def write_us_market_data(sh, us_data, ndx_close, ndx_change, today_str):
 # ---------- 5. 主程式 ----------
 def main():
     print("=" * 60)
-    print("NQ GEX 全自動爬蟲 v1.6")
+    print("NQ GEX 全自動爬蟲 v1.7")
     print("=" * 60)
-
-    # 載入歷史快取
-    history = load_nq_history()
-    print(f"📂 歷史快取載入完成（{len(history)} 筆）")
 
     if not is_us_market_open():
         print("⏸️ 今日為美股休市日（週末），跳過爬蟲")
@@ -392,7 +414,7 @@ def main():
     ndx_change = (S - ndx_open) / ndx_open * 100
     print(f"✅ ^VXN = {sigma:.2f}, ^NDX = {S:.2f} ({ndx_change:+.2f}%)")
 
-    # 美股盤後數據（補齊七雄）
+    # 美股盤後數據
     print("\n📊 抓取美股盤後數據...")
     us_tickers = {
         "SPX": "^GSPC",
@@ -453,19 +475,9 @@ def main():
 
     sh = connect_gsheet()
     write_to_sheet(gex_data, tv_string)
-    write_nq_chips_analysis(sh, gex_data, today_str, history)
-    write_nq_cumulative(sh, gex_data, today_str, history)
+    write_nq_chips_analysis(sh, gex_data, today_str)
+    write_nq_cumulative(sh, gex_data, today_str)
     write_us_market_data(sh, us_data, S, ndx_change, today_str)
-
-    # 儲存今日數據到歷史快取
-    history[today_str] = {
-        "total_call": sum(d["call_oi"] for d in gex_data),
-        "total_put": sum(d["put_oi"] for d in gex_data)
-    }
-    sorted_keys = sorted(history.keys())[-90:]
-    history = {k: history[k] for k in sorted_keys}
-    save_nq_history(history)
-    print(f"💾 歷史快取已更新（{len(history)} 筆）")
 
     print("\n✅ 全部完成！")
 
