@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NQ 選擇權 GEX 全自動爬蟲 v1.5
+NQ 選擇權 GEX 全自動爬蟲 v1.6
 - 自動判斷季度合約（到期日 = 第三個週五）
-- 每日總 Call/Put OI 變化 + 累計趨勢
-- 美股盤後數據（NDX, SPX, SOX, VIX, VXN, AAPL, MSFT, NVDA, NQ期貨, TSM）
+- 每日總 Call/Put OI 變化 + 累計趨勢（使用歷史快取）
+- 美股盤後數據（NDX, SPX, SOX, VIX, VXN, AAPL, MSFT, NVDA, GOOGL, AMZN, META, TSLA, NQ期貨, TSM）
 - 籌碼分析寫入試算表
 """
 
@@ -21,6 +21,7 @@ MULT         = 20
 
 SPREADSHEET_ID = "1oPHb8dhDBpoN623zU0zEpC7cuiFLCrzWmvlcZsfSYFM"
 CSV_DOWNLOAD_DIR = "/tmp/nq_csv"
+HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nq_history.json")
 
 BARCHART_USER = os.environ.get("BARCHART_USER", "")
 BARCHART_PASS = os.environ.get("BARCHART_PASS", "")
@@ -32,6 +33,17 @@ NQ_QUARTER_MAP = {
     9:  {"code": "U", "name": "sep"},
     12: {"code": "Z", "name": "dec"},
 }
+
+# ---------- 歷史快取 ----------
+def load_nq_history():
+    if os.path.exists(HISTORY_FILE):
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+def save_nq_history(data):
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 # ---------- 輔助函數 ----------
 def get_third_friday(year, month):
@@ -249,26 +261,28 @@ def write_to_sheet(gex_data, tv_string):
     ws.append_rows(rows)
     print(f"✅ 已寫入 {len(rows)} 筆至 NQ 合併")
 
-def write_nq_chips_analysis(sh, gex_data, today_str):
+def write_nq_chips_analysis(sh, gex_data, today_str, history):
     ws = ensure_sheet(sh, "NQ 籌碼分析", rows=500, cols=10)
     total_call = sum(d["call_oi"] for d in gex_data)
     total_put = sum(d["put_oi"] for d in gex_data)
     cp_ratio = round(total_call / total_put, 2) if total_put > 0 else 0
     max_call = max(gex_data, key=lambda x: x["call_oi"])
     max_put = max(gex_data, key=lambda x: x["put_oi"])
+
+    # 從歷史快取讀取前一天數據
+    prev_day = (datetime.now(timezone(timedelta(hours=8))) - timedelta(days=1)).strftime("%Y/%m/%d")
+    prev_data = history.get(prev_day, {})
+    prev_call = prev_data.get("total_call", 0)
+    prev_put = prev_data.get("total_put", 0)
+
+    call_change = total_call - prev_call
+    put_change = total_put - prev_put
+
     all_rows = ws.get_all_values()
-    # 若為新工作表，寫入表頭
     if len(all_rows) == 0:
         ws.append_row(["日期","總CallOI","總PutOI","C/P比","Call變化","Put變化","最大壓力價","最大壓力OI","最大支撐價","最大支撐OI"])
         all_rows = [["日期"]]
-    prev_call = 0
-    prev_put = 0
-    if len(all_rows) > 1:
-        last_row = all_rows[-1]
-        prev_call = int(last_row[1]) if last_row[1] else 0
-        prev_put = int(last_row[2]) if last_row[2] else 0
-    call_change = total_call - prev_call
-    put_change = total_put - prev_put
+
     dates = ws.col_values(1)
     row_data = [today_str, total_call, total_put, cp_ratio, call_change, put_change,
                 max_call["履約價"], max_call["call_oi"],
@@ -278,31 +292,33 @@ def write_nq_chips_analysis(sh, gex_data, today_str):
         ws.update(values=[row_data], range_name=f"A{idx}:J{idx}")
     else:
         ws.append_row(row_data)
-    print(f"✅ 已寫入 NQ 籌碼分析")
+    print(f"✅ 已寫入 NQ 籌碼分析（call增減: {call_change}, put增減: {put_change}）")
 
-def write_nq_cumulative(sh, gex_data, today_str):
+def write_nq_cumulative(sh, gex_data, today_str, history):
     ws = ensure_sheet(sh, "NQ 累計趨勢", rows=500, cols=8)
     total_call = sum(d["call_oi"] for d in gex_data)
     total_put = sum(d["put_oi"] for d in gex_data)
+
+    # 從歷史快取讀取前一天數據
+    prev_day = (datetime.now(timezone(timedelta(hours=8))) - timedelta(days=1)).strftime("%Y/%m/%d")
+    prev_data = history.get(prev_day, {})
+    prev_call = prev_data.get("total_call", 0)
+    prev_put = prev_data.get("total_put", 0)
+
+    call_change = total_call - prev_call
+    put_change = total_put - prev_put
+
     all_rows = ws.get_all_values()
-    # 若為新工作表，寫入表頭
-    if len(all_rows) == 0:
-        ws.append_row(["日期","總CallOI","總PutOI","Call變化","Put變化","累積Call","累積Put"])
-        all_rows = [["日期"]]
-    prev_call = 0
-    prev_put = 0
     prev_cum_call = 0
     prev_cum_put = 0
     if len(all_rows) > 1:
         last_row = all_rows[-1]
-        prev_call = int(last_row[1]) if last_row[1] else 0
-        prev_put = int(last_row[2]) if last_row[2] else 0
         prev_cum_call = int(last_row[5]) if len(last_row) > 5 and last_row[5] else 0
         prev_cum_put = int(last_row[6]) if len(last_row) > 6 and last_row[6] else 0
-    call_change = total_call - prev_call
-    put_change = total_put - prev_put
+
     cum_call = prev_cum_call + call_change
     cum_put = prev_cum_put + put_change
+
     dates = ws.col_values(1)
     row_data = [today_str, total_call, total_put, call_change, put_change, cum_call, cum_put]
     if today_str in dates:
@@ -310,14 +326,27 @@ def write_nq_cumulative(sh, gex_data, today_str):
         ws.update(values=[row_data], range_name=f"A{idx}:G{idx}")
     else:
         ws.append_row(row_data)
-    print(f"✅ 已寫入 NQ 累計趨勢")
+    print(f"✅ 已寫入 NQ 累計趨勢（call增減: {call_change}, put增減: {put_change}）")
 
 def write_us_market_data(sh, us_data, ndx_close, ndx_change, today_str):
-    ws = ensure_sheet(sh, "NQ 市場數據", rows=100, cols=20)
+    ws = ensure_sheet(sh, "NQ 市場數據", rows=100, cols=30)
     ws.clear()
-    ws.append_row(["日期", "NDX", "NDX漲跌%", "SPX", "SPX漲跌%", "SOX", "SOX漲跌%",
-                   "VIX", "VXN", "AAPL", "AAPL漲跌%", "MSFT", "MSFT漲跌%", "NVDA", "NVDA漲跌%",
-                   "NQ期貨", "NQ期貨漲跌%", "TSM", "TSM漲跌%"])
+    ws.append_row([
+        "日期",
+        "NDX", "NDX漲跌%",
+        "SPX", "SPX漲跌%",
+        "SOX", "SOX漲跌%",
+        "VIX", "VXN",
+        "AAPL", "AAPL漲跌%",
+        "MSFT", "MSFT漲跌%",
+        "NVDA", "NVDA漲跌%",
+        "GOOGL", "GOOGL漲跌%",
+        "AMZN", "AMZN漲跌%",
+        "META", "META漲跌%",
+        "TSLA", "TSLA漲跌%",
+        "NQ期貨", "NQ期貨漲跌%",
+        "TSM", "TSM漲跌%",
+    ])
     row = [
         today_str,
         round(ndx_close, 2), round(ndx_change, 2),
@@ -328,17 +357,25 @@ def write_us_market_data(sh, us_data, ndx_close, ndx_change, today_str):
         us_data.get("AAPL", {}).get("close", 0), us_data.get("AAPL", {}).get("change_pct", 0),
         us_data.get("MSFT", {}).get("close", 0), us_data.get("MSFT", {}).get("change_pct", 0),
         us_data.get("NVDA", {}).get("close", 0), us_data.get("NVDA", {}).get("change_pct", 0),
+        us_data.get("GOOGL", {}).get("close", 0), us_data.get("GOOGL", {}).get("change_pct", 0),
+        us_data.get("AMZN", {}).get("close", 0), us_data.get("AMZN", {}).get("change_pct", 0),
+        us_data.get("META", {}).get("close", 0), us_data.get("META", {}).get("change_pct", 0),
+        us_data.get("TSLA", {}).get("close", 0), us_data.get("TSLA", {}).get("change_pct", 0),
         us_data.get("NQ_F", {}).get("close", 0), us_data.get("NQ_F", {}).get("change_pct", 0),
         us_data.get("TSM", {}).get("close", 0), us_data.get("TSM", {}).get("change_pct", 0),
     ]
     ws.append_row(row)
-    print(f"✅ 已寫入 NQ 市場數據")
+    print(f"✅ 已寫入 NQ 市場數據（含七雄）")
 
-# ---------- 8. 主程式 ----------
+# ---------- 5. 主程式 ----------
 def main():
     print("=" * 60)
-    print("NQ GEX 全自動爬蟲 v1.5")
+    print("NQ GEX 全自動爬蟲 v1.6")
     print("=" * 60)
+
+    # 載入歷史快取
+    history = load_nq_history()
+    print(f"📂 歷史快取載入完成（{len(history)} 筆）")
 
     if not is_us_market_open():
         print("⏸️ 今日為美股休市日（週末），跳過爬蟲")
@@ -355,7 +392,7 @@ def main():
     ndx_change = (S - ndx_open) / ndx_open * 100
     print(f"✅ ^VXN = {sigma:.2f}, ^NDX = {S:.2f} ({ndx_change:+.2f}%)")
 
-    # 美股盤後數據
+    # 美股盤後數據（補齊七雄）
     print("\n📊 抓取美股盤後數據...")
     us_tickers = {
         "SPX": "^GSPC",
@@ -364,6 +401,10 @@ def main():
         "AAPL": "AAPL",
         "MSFT": "MSFT",
         "NVDA": "NVDA",
+        "GOOGL": "GOOGL",
+        "AMZN": "AMZN",
+        "META": "META",
+        "TSLA": "TSLA",
         "NQ_F": "NQ=F",
         "TSM": "TSM",
     }
@@ -412,9 +453,19 @@ def main():
 
     sh = connect_gsheet()
     write_to_sheet(gex_data, tv_string)
-    write_nq_chips_analysis(sh, gex_data, today_str)
-    write_nq_cumulative(sh, gex_data, today_str)
+    write_nq_chips_analysis(sh, gex_data, today_str, history)
+    write_nq_cumulative(sh, gex_data, today_str, history)
     write_us_market_data(sh, us_data, S, ndx_change, today_str)
+
+    # 儲存今日數據到歷史快取
+    history[today_str] = {
+        "total_call": sum(d["call_oi"] for d in gex_data),
+        "total_put": sum(d["put_oi"] for d in gex_data)
+    }
+    sorted_keys = sorted(history.keys())[-90:]
+    history = {k: history[k] for k in sorted_keys}
+    save_nq_history(history)
+    print(f"💾 歷史快取已更新（{len(history)} 筆）")
 
     print("\n✅ 全部完成！")
 
