@@ -13,7 +13,7 @@
         :root {
             --primary: #4A9EE0;
             --primary-light: #6BB5F0;
-            --primary-lighter: #8FC9F0; /* 更浅的蓝色，用于区块标题 */
+            --primary-lighter: #8FC9F0;
             --primary-dim: rgba(74, 158, 224, 0.15);
             --primary-glow: rgba(74, 158, 224, 0.25);
             --bg: #0C0F15;
@@ -63,7 +63,6 @@
 
         .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
 
-        /* 美股市場表格 */
         .market-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background: var(--bg2); border-radius: 6px; overflow: hidden; }
         .market-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 14px; }
         .market-table .m-name { font-weight: 500; color: var(--text2); }
@@ -76,7 +75,6 @@
         .info-box { font-size: 13px; color: var(--text); padding: 14px 16px; background: var(--bg3); border-radius: 4px; margin-bottom: 16px; line-height: 1.8; border-left: 2px solid var(--primary-light); }
         .info-box strong { color: var(--primary-light); }
 
-        /* 分析卡片 */
         .analysis-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 20px 22px; margin-top: 0; transition: border-color 0.2s; border-left: 4px solid var(--primary-light); }
         .analysis-card:hover { border-color: var(--border2); }
         .analysis-card .card-header h3 { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: var(--primary-light); letter-spacing: 0.5px; }
@@ -95,9 +93,7 @@
             flex-wrap: wrap;
             gap: 6px;
         }
-        .block-title .analysis-tag {
-            margin: 0;
-        }
+        .block-title .analysis-tag { margin: 0; }
         .analysis-item { font-size: 14px; padding: 6px 0; line-height: 1.5; color: var(--text2); display: flex; align-items: baseline; gap: 10px; }
         .analysis-tag { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; padding: 1px 12px; border-radius: 12px; white-space: nowrap; flex-shrink: 0; }
         .tag-bull { background: rgba(61,191,140,0.15); color: #86efac; }
@@ -110,7 +106,6 @@
         .pos { color: var(--red); }
         .neg { color: var(--green); }
 
-        /* 能量條 */
         .energy-container { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
         .energy-row { display: flex; align-items: stretch; height: 38px; background: rgba(255,255,255,0.02); border-radius: 6px; border: 1px solid rgba(255,255,255,0.04); transition: all 0.25s ease; position: relative; overflow: hidden; }
         .energy-row:hover { background: rgba(255,255,255,0.05); border-color: var(--border2); transform: scale(1.002); }
@@ -307,7 +302,7 @@
         const last = rows[rows.length-1];
         DATA.market = { ndx: safeNum(last[1]) };
         document.getElementById('mRef').textContent = DATA.market.ndx>0 ? DATA.market.ndx.toLocaleString() : '-';
-        document.getElementById('mRef').style.color = 'var(--text)'; // reset
+        document.getElementById('mRef').style.color = 'var(--text)';
 
         const items = [
             ['NDX',1,2], ['SPX',3,4], ['SOX',5,6], ['VIX',7,null], ['VXN',8,null],
@@ -503,12 +498,12 @@
         else if(cpRatio<0.9) adviceText = '法人籌碼偏多，下方支撐穩固。可留意拉回承接機會，但結算日當天選擇權時間價值快速收斂，盤中容易出現 Gamma 區間行情，操作上應嚴格停損。';
         else adviceText = '法人籌碼中性偏觀望，短線等待方向表態。建議縮小部位，待趨勢明確後再積極操作。結算日當天選擇權時間價值快速收斂，盤中容易出現 Gamma 區間行情，操作上應縮小部位、嚴格停損。';
 
-        // ★ 重點：標題只保留一個代表性燈號，另一個放回內文
+        // 增加「籌碼動向」與「C/P 比值」之間的間距
         container.innerHTML = `
             <div class="analysis-block">
                 <div class="block-title"> 籌碼動向 ${dirTag}</div>
-                <div class="analysis-item"><span class="text">${dirText}</span></div>
-                <div style="margin-top:8px;">
+                <div class="analysis-item" style="margin-bottom:6px;"><span class="text">${dirText}</span></div>
+                <div style="margin-top:16px;">
                     <div class="cp-subtitle" style="font-size:13px; margin-bottom:4px;"> C/P 比值 ${cpTag}</div>
                     <div class="analysis-item"><span class="text">數值：${cpRatio.toFixed(2)}（${cpText}）</span></div>
                 </div>
